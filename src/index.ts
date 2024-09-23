@@ -1,38 +1,155 @@
 import { Elysia, t } from "elysia";
 import { createDb } from "./db";
 
+
 const app = new Elysia()
-  .decorate('db', createDb())
+const db = await createDb()
+
+app
+  .decorate('db', db)
   .get("/", () => "Hello Elysia")
-  .get("/users", () => "list users")
-  .get("/users/:id", ({db, params}) => {
-    const userId = params.id
-    console.log(`getting user by id ${userId}`)
-    return db.query("SELECT * FROM users WHERE user_id = $user_id")
-      .get({
-      $user_id: params.id
-    })
-    return "single user handler"
+  .get("/players", async ({ db }) => {
+    try {
+      const res = await db.query("SELECT * FROM players");
+      return res.rows;
+    } catch (error) {
+      console.error(error);
+      return {
+        message: "Failed to fetch players",
+        error: error.message
+      };
+    }
+  })
+  .get("/players/:id", async ({db, params}) => {
+    const playerId = params.id
+    const res = await db.query("SELECT * FROM players WHERE player_id = $1", [playerId])
+    console.log(`getting user by id ${playerId}`)
+    return res.rows[0]
   },{
     params: t.Object({
       id: t.Numeric()
     })
-  }
-  )
-.post("/users", async ({ body, db }) => {
+  })
+  .get("/login-history", async ({ db }) => {
     try {
-      const { first_name, last_name, email, about } = body;  // Parsing body JSON langsung
-      console.log(`Creating user: ${first_name} ${last_name}`);
+      const res = await db.query("SELECT * FROM login_history");
+      return res.rows;
+    } catch (error) {
+      console.error(error);
+      return {
+        message: "Failed to fetch login history",
+        error: error.message
+      };
+    }
+  }) 
+  .get("/login-history/:id", async ({db, params}) => {
+    try {
+      const loginHistoryId = params.id
+      const res = await db.query("SELECT * FROM login_history WHERE login_history_id = $1", [loginHistoryId])
+      return res.rows[0]
+    } catch (error) {
+      console.error(error);
+      return {
+        message: "Failed to fetch login history",
+        error: error.message
+      };
+    }
+  })
+  .get("/developers", async ({ db }) => {
+    try {  
+      const res = await db.query("SELECT * FROM developers");
+      return res.rows;
+    } catch (error) {
+      console.error(error);
+      return {
+        message: "Failed to fetch developers",
+        error: error.message
+      };
+    }
+  })
+  
+  .get("/developers/:id", async ({db, params}) => {
+    try {
+      const developerId = params.id
+      const res = await db.query("SELECT * FROM developers WHERE developer_id = $1", [developerId])
+      return res.rows[0]
+    } catch (error) {
+      console.error(error);
+      return {
+        message: "Failed to fetch developer",
+        error: error.message
+      };
+    }
+  })
+
+  .get("/gears", async ({ db }) => {
+    try {
+      const res = await db.query("SELECT * FROM gears");
+      return res.rows;
+    } catch (error) { 
+      console.error(error);
+      return {
+        message: "Failed to fetch gears",
+        error: error.message
+      };
+    }
+  })
+
+  .get("/gears/:id", async ({db, params}) => {
+    try {
+      const gearId = params.id
+      const res = await db.query("SELECT * FROM gears WHERE gear_id = $1", [gearId])
+      return res.rows[0]
+    } catch (error) {
+      console.error(error);
+      return {
+        message: "Failed to fetch gear",
+        error: error.message
+      };
+    }
+  })
+
+  .get("/characters", async ({ db }) => {
+    try {
+      const res = await db.query("SELECT * FROM characters");
+      return res.rows;
+    } catch (error) {
+      console.error(error);
+      return {
+        message: "Failed to fetch characters",
+        error: error.message
+      };
+    }
+  })
+
+  .get("/characters/:id", async ({db, params}) => {
+    try {
+      const characterId = params.id
+      const res = await db.query("SELECT * FROM characters WHERE character_id = $1", [characterId])
+      return res.rows[0]
+    } catch (error) {
+      console.error(error);
+      return {
+        message: "Failed to fetch character",
+        error: error.message
+      };
+    }
+  })
+
+  .post("/players", async ({ body, db }) => {
+    try {
+      const { username, email, password, favourite_animal} = body;  // Parsing body JSON langsung
+      console.log(`Creating Player: ${username}`);
 
       // Masukkan data ke dalam database
-      db.run(
-        "INSERT INTO users (first_name, last_name, email, about) VALUES (?, ?, ?, ?)", 
-        [first_name, last_name, email, about]
+      await db.query(
+        "INSERT INTO players (username, email, password, favourite_animal) VALUES ($1, $2, $3, $4)", 
+        [username, email, password, favourite_animal]
       );
 
       return {
-        message: "User created successfully!",
-        user: { first_name, last_name, email, about }
+        message: "Player created successfully!",
+        player: { username, email, password, favourite_animal}
       };
     } catch (error) {
       console.error(error);
@@ -42,6 +159,96 @@ const app = new Elysia()
       };
     }
   })
+
+    // Menambahkan login history baru
+  .post("/login-history", async ({ body, db }) => {
+    try {
+      const { login_data, player_id } = body;
+      console.log(`Logging login for player ID: ${player_id}`);
+      
+      await db.query(
+          "INSERT INTO Login_history (login_data, player_id) VALUES ($1, $2)",
+          [login_data, player_id]
+      );
+
+      return { message: "Login history added successfully!" };
+    } catch (error) {
+      console.error(error);
+      return { 
+        message: "Failed to add login history", 
+        error: error.message 
+      };
+    }
+  })
+
+    // Menambahkan pengumuman developer
+  .post("/developers", async ({ body, db }) => {
+    try {
+      const { login_history_id, anouncement_data} = body;
+      console.log(`Adding developer anouncement for login history ID: ${login_history_id}`);
+      
+      await db.query(
+          "INSERT INTO developers (login_history_id, anouncement_data) VALUES ($1, $2)",
+          [login_history_id, anouncement_data]
+      );
+
+      return { 
+        message: "Developers announcement added successfully!" 
+      };
+    } catch (error) {
+      console.error(error);
+      return { 
+        message: "Failed to add developer announcement", 
+        error: error.message 
+      };
+    }
+  })
+  
+  .post("/gears", async ({ body, db }) => {
+    try {
+      const { gear_name, gear_type, gear_exp, gear_price, gear_grade, gear_description, base_atack, base_defense, base_intelligence, obtained_at, character_id, player_id } = body;
+      console.log(`Adding gear: ${gear_name}`);
+      
+      await db.query(
+          "INSERT INTO gears (gear_name, gear_type, gear_exp, gear_price, gear_grade, gear_description, base_atack, base_defense, base_intelligence, obtained_at, character_id, player_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
+          [gear_name, gear_type, gear_exp, gear_price, gear_grade, gear_description, base_atack, base_defense, base_intelligence, obtained_at, character_id, player_id]
+      );
+
+      return { 
+        message: "Gear added successfully!" 
+      };
+    } catch (error) {
+      console.error(error);
+      return { 
+        message: "Failed to add gear", 
+        error: error.message 
+      };
+    }
+  })
+
+  .post("/characters", async ({ body, db }) => {
+    try {
+      const { character_name, character_type, character_price, character_grade, base_attack, base_defense, base_intelligence, player_id } = body;
+      console.log(`Adding character: ${character_name}`);
+      
+      await db.query(
+          "INSERT INTO characters (character_name, character_type, character_price, character_grade, base_attack, base_defense, base_intelligence, player_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+          [character_name, character_type, character_price, character_grade, base_attack, base_defense, base_intelligence, player_id]
+      );
+
+      return { 
+        message: "Character added successfully!" 
+      };
+    } catch (error) {
+      console.error(error);
+      return { 
+        message: "Failed to add character", 
+        error: error.message 
+      };
+    }
+  })
+
+
   .listen(3000);
 
 console.log(

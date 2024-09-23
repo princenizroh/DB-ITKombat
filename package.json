@@ -10,9 +10,11 @@
     "bun-sqlite-migrations": "^1.0.2",
     "elysia": "latest",
     "eslint_d": "^14.0.3",
+    "pg": "^8.13.0",
     "prettier_d": "^6.0.0"
   },
   "devDependencies": {
+    "@types/pg": "^8.11.10",
     "bun-types": "latest"
   },
   "module": "src/index.js"

@@ -1,4 +1,39 @@
 import { Client } from 'pg';
+import { exec } from 'child_process';
+
+// Fungsi untuk menjalankan SQL file
+const runSQL = (filePath: string) => {
+  exec(`psql -U postgres -d ITKombat -f ${filePath}`, (err, stdout, stderr) => {
+    if (err) {
+      console.error(`Error executing SQL file: ${filePath}`, err);
+      return;
+    }
+    console.log(stdout);
+    if (stderr) {
+      console.error(stderr);
+    }
+  });
+};
+// Up migration
+// runSQL('migrations/2024-09-25-000001_create_players/up.sql');
+// runSQL('migrations/2024-09-25-000002_create_login_histories/up.sql');
+// runSQL('migrations/2024-09-25-000003_create_developers/up.sql');
+// runSQL('migrations/2024-09-25-000004_create_gears/up.sql');
+// runSQL('migrations/2024-09-25-000005_create_characters/up.sql');
+// runSQL('migrations/2024-09-25-000006_create_items/up.sql');
+// runSQL('migrations/2024-09-25-000007_create_player_items/up.sql');
+// runSQL('migrations/2024-09-25-000008_create_enchances/up.sql');
+// runSQL('migrations/2024-09-25-000009_create_stores/up.sql');
+// Down migration
+// runSQL('migrations/2024-09-25-000001_create_players/down.sql');
+// runSQL('migrations/2024-09-25-000002_create_login_histories/down.sql');
+// runSQL('migrations/2024-09-25-000003_create_developers/down.sql');
+// runSQL('migrations/2024-09-25-000004_create_gears/down.sql');
+// runSQL('migrations/2024-09-25-000005_create_characters/down.sql');
+// runSQL('migrations/2024-09-25-000006_create_items/down.sql');
+// runSQL('migrations/2024-09-25-000007_create_player_items/down.sql');
+// runSQL('migrations/2024-09-25-000008_create_enchances/down.sql');
+// runSQL('migrations/2024-09-25-000009_create_stores/down.sql');
 
 export const createDb = async () => {
     console.log("Connectinog to PostgreSQL database...");
@@ -12,18 +47,7 @@ export const createDb = async () => {
 
     await client.connect();
     console.log("Connected to PostgreSQL database!");
-    
-    // await client.query(`
-    //   CREATE TABLE Player (
-    //       player_id SERIAL PRIMARY KEY,
-    //       username VARCHAR(50) NOT NULL,
-    //       email VARCHAR(50) NOT NULL UNIQUE,
-    //       password VARCHAR(50) NOT NULL,
-    //       favourite_animal VARCHAR(50),
-    //       registration_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    //   );
-    // `);
-
+    return client;
     // await client.query(`
     //   CREATE TABLE Profile (
     //       profile_id SERIAL PRIMARY KEY,
@@ -34,40 +58,5 @@ export const createDb = async () => {
     //       amount_skp2m INT DEFAULT 0,
     //       FOREIGN KEY (player_id) REFERENCES Player(player_id)
     //   );
-    // `);
-    // await client.query(`
-    //   CREATE TABLE gears (
-    //       gear_id SERIAL PRIMARY KEY,
-    //       gear_name VARCHAR(50) NOT NULL,
-    //       gear_type VARCHAR(50) NOT NULL,
-    //       gear_exp INT NOT NULL,
-    //       gear_price INT NOT NULL,
-    //       gear_grade VARCHAR(50),
-    //       gear_description TEXT,
-    //       base_atack INT,
-    //       base_defense INT,
-    //       base_intelligence INT,
-    //       obtained_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    //       character_id INT,
-    //       player_id INT,
-    //       FOREIGN KEY (character_id) REFERENCES characters(character_id),
-    //       FOREIGN KEY (player_id) REFERENCES players(player_id)
-    //   );
     // `); 
-    // await client.query(`
-    //   CREATE TABLE characters (
-    //       character_id SERIAL PRIMARY KEY,
-    //       character_name VARCHAR(50) NOT NULL,
-    //       character_type VARCHAR(50) NOT NULL,
-    //       character_price INT NOT NULL,
-    //       character_grade VARCHAR(50) NOT NULL,
-    //       base_attack INT,
-    //       base_defense INT,
-    //       base_intelligence INT,
-    //       player_id INT,
-    //       FOREIGN KEY (player_id) REFERENCES players(player_id)
-    //   );
-    // `);
-    
-    return client;
 }

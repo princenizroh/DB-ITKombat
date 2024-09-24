@@ -136,6 +136,46 @@ app
     }
   })
 
+  .get("/items", async ({ db }) => {
+    try {
+      const res = await db.query("SELECT * FROM items");
+      return res.rows;
+    } catch (error) {
+      console.error(error);
+      return {
+        message: "Failed to fetch items",
+        error: error.message
+      };
+    }
+  })
+
+  .get("/items/:id", async ({db, params}) => {
+    try {
+      const itemId = params.id
+      const res = await db.query("SELECT * FROM items WHERE item_id = $1", [itemId])
+      return res.rows[0]
+    } catch (error) {
+      console.error(error);
+      return {
+        message: "Failed to fetch item",
+        error: error.message
+      };
+    }
+  })
+
+  .get("/player_item", async ({ db }) => {
+    try {
+      const res = await db.query("SELECT * FROM player_item");
+      return res.rows;
+    } catch (error) {
+      console.error(error);
+      return {
+        message: "Failed to fetch player item",
+        error: error.message
+      };
+    }
+  })
+
   .post("/players", async ({ body, db }) => {
     try {
       const { username, email, password, favourite_animal} = body;  // Parsing body JSON langsung
@@ -244,6 +284,50 @@ app
       return { 
         message: "Failed to add character", 
         error: error.message 
+      };
+    }
+  })
+
+  .post("/items", async ({ body, db }) => {
+    try {
+      const { item_name, item_category, item_subtype, item_price, is_tradeable, item_description, obtainable_from } = body;
+      console.log(`Adding item: ${item_name}`);
+      
+      await db.query(
+          "INSERT INTO items (item_name, item_category, item_subtype, item_price, is_tradeable, item_description, obtainable_from) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+          [item_name, item_category, item_subtype, item_price, is_tradeable, item_description, obtainable_from]
+      );
+
+      return {
+        message: "Item added successfully!"
+      };
+    } catch (error) {
+      console.error(error);
+      return {
+        message: "Failed to add item",
+        error: error.message
+      };
+    }
+  })
+
+  .post("/player_item", async ({ body, db }) => {
+    try {
+      const { quantity, obtained_timestamp, is_equipped, is_used, player_id, item_id } = body;
+      console.log(`Adding player item: ${item_id}`);
+      
+      await db.query(
+          "INSERT INTO player_item (quantity, obtained_timestamp, is_equipped, is_used, player_id, item_id) VALUES ($1, $2, $3, $4, $5, $6)",
+          [quantity, obtained_timestamp, is_equipped, is_used, player_id, item_id]
+      );
+
+      return {
+        message: "Player item added successfully!"
+      };
+    } catch (error) {
+      console.error(error);
+      return {
+        message: "Failed to add player item",
+        error: error.message
       };
     }
   })

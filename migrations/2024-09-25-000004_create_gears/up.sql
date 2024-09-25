@@ -32,6 +32,8 @@ BEGIN
 END;
 $$;
 
+SELECT count_gears_for_player(1);
+
   INSERT INTO gears (gear_name, gear_type, gear_exp, gear_price, gear_grade, gear_description, base_attack, base_defense, base_intelligence, character_id, player_id)
 VALUES 
 ('Sword of Valor', 'Weapon', 100, 5000, 'A', 'A powerful sword with high attack power', 50, 20, 15, 1, 1),

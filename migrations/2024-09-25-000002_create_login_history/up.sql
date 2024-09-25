@@ -16,6 +16,23 @@ BEGIN
 END;
 $$;
 
+BEGIN;  -- Memulai transaksi
+
+-- Memanggil stored procedure untuk menambah data ke login_history
+CALL add_player_history(1, 'Logged in via Mobile');
+CALL add_player_history(2, 'Logged in via Web');
+
+-- Commit transaksi jika semua operasi sukses
+COMMIT;
+
+-- Jika ada error, rollback transaksi
+EXCEPTION
+  WHEN OTHERS THEN
+    ROLLBACK;
+    RAISE NOTICE 'Terjadi error, transaksi di-rollback';
+END;
+
+
 
 -- Data awal
 INSERT INTO login_history (player_id, login_data)

@@ -10,3 +10,10 @@ CREATE TABLE characters (
     player_id INT,
     FOREIGN KEY (player_id) REFERENCES players(player_id)
 );
+
+INSERT INTO characters (character_name, character_type, character_price, character_grade, base_attack, base_defense, base_intelligence, player_id)
+VALUES 
+('Warrior', 'Melee', 5000, 'A', 60, 30, 20, 1),
+('Mage', 'Magic', 7000, 'S', 30, 20, 70, 2),
+('Archer', 'Ranged', 6000, 'A', 50, 25, 35, 3);
+

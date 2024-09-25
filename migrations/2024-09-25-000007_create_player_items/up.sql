@@ -9,3 +9,10 @@ CREATE TABLE player_item (
     item_id INT,
     FOREIGN KEY (item_id) REFERENCES items(item_id)
 );
+
+INSERT INTO player_items (quantity, is_equipped, is_used, player_id, item_id)
+VALUES 
+(10, FALSE, FALSE, 1, 1),
+(5, TRUE, FALSE, 2, 2),
+(3, TRUE, TRUE, 3, 3);
+

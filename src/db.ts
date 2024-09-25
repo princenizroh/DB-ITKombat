@@ -25,15 +25,15 @@ const runSQL = (filePath: string) => {
 // runSQL('migrations/2024-09-25-000008_create_enchances/up.sql');
 // runSQL('migrations/2024-09-25-000009_create_stores/up.sql');
 // Down migration
-// runSQL('migrations/2024-09-25-000001_create_players/down.sql');
-// runSQL('migrations/2024-09-25-000002_create_login_histories/down.sql');
+runSQL('migrations/2024-09-25-000001_create_players/down.sql');
+// runSQL('migrations/2024-09-25-000002_create_login_history/down.sql');
 // runSQL('migrations/2024-09-25-000003_create_developers/down.sql');
 // runSQL('migrations/2024-09-25-000004_create_gears/down.sql');
 // runSQL('migrations/2024-09-25-000005_create_characters/down.sql');
 // runSQL('migrations/2024-09-25-000006_create_items/down.sql');
 // runSQL('migrations/2024-09-25-000007_create_player_items/down.sql');
 // runSQL('migrations/2024-09-25-000008_create_enchances/down.sql');
-// runSQL('migrations/2024-09-25-000009_create_stores/down.sql');
+runSQL('migrations/2024-09-25-000009_create_stores/down.sql');
 
 export const createDb = async () => {
     console.log("Connectinog to PostgreSQL database...");

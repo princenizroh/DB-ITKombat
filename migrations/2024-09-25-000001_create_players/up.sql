@@ -17,6 +17,22 @@ BEGIN
 END;
 $$;
 
+-- Function count_gears_for_player menghitung jumlah gear yang dimiliki oleh seorang pemain berdasarkan player_id
+CREATE OR REPLACE FUNCTION count_gears_for_player(p_player_id INT) 
+RETURNS INT 
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    total_gears INT;
+BEGIN
+    SELECT COUNT(*) INTO total_gears
+    FROM gears
+    WHERE player_id = p_player_id;
+    
+    RETURN total_gears;
+END;
+$$;
+
 -- Function untuk memeriksa duplikat username di tabel players
 CREATE OR REPLACE FUNCTION check_duplicate_player() RETURNS TRIGGER
 LANGUAGE plpgsql

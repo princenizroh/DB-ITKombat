@@ -16,6 +16,22 @@ CREATE TABLE gears (
     FOREIGN KEY (player_id) REFERENCES players(player_id)
   );
 
+-- Fungsi count_gears_for_player menghitung jumlah gear yang dimiliki oleh seorang pemain berdasarkan player_id
+CREATE OR REPLACE FUNCTION count_gears_for_player(p_player_id INT) 
+RETURNS INT 
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    total_gears INT;
+BEGIN
+    SELECT COUNT(*) INTO total_gears
+    FROM gears
+    WHERE player_id = p_player_id;
+    
+    RETURN total_gears;
+END;
+$$;
+
   INSERT INTO gears (gear_name, gear_type, gear_exp, gear_price, gear_grade, gear_description, base_attack, base_defense, base_intelligence, character_id, player_id)
 VALUES 
 ('Sword of Valor', 'Weapon', 100, 5000, 'A', 'A powerful sword with high attack power', 50, 20, 15, 1, 1),

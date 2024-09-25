@@ -1,39 +1,26 @@
-CREATE TABLE players (
-    player_id SERIAL PRIMARY KEY,
-    username VARCHAR(50) NOT NULL,
-    email VARCHAR(50) NOT NULL UNIQUE,
-    password VARCHAR(50) NOT NULL,
-    favourite_animal VARCHAR(50),
-    registration_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE login_history (
+    login_history_id SERIAL PRIMARY KEY,
+    login_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    logout_time TIMESTAMP,
+    login_data VARCHAR(255),
+    player_id INT REFERENCES Player(player_id) ON DELETE CASCADE
 );
 
--- Function untuk memeriksa duplikat username di tabel players
-CREATE OR REPLACE FUNCTION check_duplicate_player() 
-RETURNS TRIGGER
+-- Stored Procedure untuk menambah data ke tabel login_histories
+CREATE OR REPLACE PROCEDURE add_player_history(p_player_id INT, p_login_data TIMESTAMP)
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    IF EXISTS (SELECT 1 FROM players WHERE username = NEW.username) THEN
-        RAISE EXCEPTION 'Player with username % already exists', NEW.username;
-    END IF;
-    RETURN NEW;
+    INSERT INTO login_histories (player_id, login_data)
+    VALUES (p_player_id, p_login_data);
 END;
 $$;
 
 
--- Trigger untuk memeriksa duplikat username sebelum insert di tabel players
-CREATE TRIGGER before_insert_player
-BEFORE INSERT ON players
-FOR EACH ROW
-EXECUTE FUNCTION check_duplicate_player();
-
-INSERT INTO players (username, email, password, favourite_animal)
+INSERT INTO login_history (player_id, login_data, login_time)
 VALUES 
-('PlayerOne', 'playerone@example.com', 'password123', 'Dog'),
-('PlayerTwo', 'playertwo@example.com', 'password456', 'Cat'),
-('PlayerThree', 'playerthree@example.com', 'password789', 'Dragon');
+(1, 'Logged in via Web', '2024-09-25 10:00:00'),
+(2, 'Logged in via Mobile', '2024-09-25 11:30:00'),
+(3, 'Logged in via Web', '2024-09-25 12:45:00');
 
-INSERT INTO players (username, email, password, favourite_animal)
-VALUES 
-('PlayerOne', 'playerone@example.com', 'password123', 'Dog'),
 

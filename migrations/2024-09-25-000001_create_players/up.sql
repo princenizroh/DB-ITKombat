@@ -1,9 +1,8 @@
-CREATE TABLE players (
-    player_id SERIAL PRIMARY KEY,
-    username VARCHAR(50) NOT NULL,
-    email VARCHAR(50) NOT NULL UNIQUE,
-    password VARCHAR(50) NOT NULL,
-    favourite_animal VARCHAR(50),
+CREATE TABLE player (
+    player_id SERIAL PRIMARY KEY NOT NULL,
+    username VARCHAR(255) NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL ,
     registration_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

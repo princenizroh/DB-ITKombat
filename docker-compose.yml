@@ -1,0 +1,26 @@
+version: '3'
+services:
+  db:
+    image: postgres
+    restart: always
+    container_name: itkombat-db-compose
+    env_file:
+      - "./.env.compose"
+    volumes:
+      - "db:/var/lib/postgresql/data"  # Bind mount untuk menghubungkan folder migrations
+    ports:
+      - "5434:5432"                   # Port mapping untuk akses lokal
+  dbmate:
+    image: amacneil/dbmate:latest
+    container_name: itkombat-dbmate
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgres://prince:admin@127.0.0.1:5434/itkombat?sslmode=disable
+    volumes:
+      - .:/dbmate
+    entrypoint: ["dbmate", "--wait", "--migrations-dir", "/dbmate/migrations"]
+volumes:
+  db:
+    driver: local
+

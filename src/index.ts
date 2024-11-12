@@ -1,36 +1,50 @@
 import { Elysia, t } from "elysia";
-import { createDb } from "./db";
+import { createDb } from "@/db";
+import { playerRoutes } from "@/routes/playerRoutes";
+import { Service } from "@/services/fibo";
 
 
 const app = new Elysia()
 const db = await createDb()
 
+// app.decorate('store', { db });
+// playerRoutes(app);
 app
   .decorate('db', db)
   .get("/", () => "Hello Elysia")
-  .get("/players", async ({ db }) => {
+  .get("/fibo/:number", ({ params }: { params: { number: string } }) => {
+    const number = Number(params.number);
+    return Service.fibo(number);
+  }
+  , {
+    params: t.Object({
+      number: t.Numeric()
+    })
+  })
+
+  .get("/player", async ({ db }: { db: any }) => {
     try {
-      const res = await db.query("SELECT * FROM players");
+      const res = await db.query("SELECT * FROM player");
       return res.rows;
     } catch (error) {
       console.error(error);
       return {
         message: "Failed to fetch players",
-        error: error.message
+        error: (error as Error).message
       };
     }
   })
-  .get("/players/:id", async ({db, params}) => {
-    const playerId = params.id
-    const res = await db.query("SELECT * FROM players WHERE player_id = $1", [playerId])
-    console.log(`getting user by id ${playerId}`)
-    return res.rows[0]
-  },{
+  .get("/player/:id", async ({ db, params }: { db: any, params: { id: string } }) => {
+    const playerId = params.id;
+    const res = await db.query("SELECT * FROM player WHERE player_id = $1", [playerId]);
+    console.log(`getting user by id ${playerId}`);
+    return res.rows[0];
+  }, {
     params: t.Object({
       id: t.Numeric()
     })
   })
-  .get("/login-history", async ({ db }) => {
+  .get("/login-history", async ({ db }: { db: any }) => {
     try {
       const res = await db.query("SELECT * FROM login_history");
       return res.rows;
@@ -38,264 +52,222 @@ app
       console.error(error);
       return {
         message: "Failed to fetch login history",
-        error: error.message
+        error: (error as Error).message
       };
     }
-  }) 
-  .get("/login-history/:id", async ({db, params}) => {
+  })
+  .get("/login-history/:id", async ({ db, params }: { db: any, params: { id: string } }) => {
     try {
-      const loginHistoryId = params.id
-      const res = await db.query("SELECT * FROM login_history WHERE login_history_id = $1", [loginHistoryId])
-      return res.rows[0]
+      const loginHistoryId = params.id;
+      const res = await db.query("SELECT * FROM login_history WHERE login_history_id = $1", [loginHistoryId]);
+      return res.rows[0];
     } catch (error) {
       console.error(error);
       return {
         message: "Failed to fetch login history",
-        error: error.message
+        error: (error as Error).message
       };
     }
   })
-  .get("/developers", async ({ db }) => {
-    try {  
-      const res = await db.query("SELECT * FROM developers");
+  .get("/balances", async ({ db }: { db: any }) => {
+    try {
+      const res = await db.query("SELECT * FROM balances");
       return res.rows;
     } catch (error) {
       console.error(error);
       return {
-        message: "Failed to fetch developers",
-        error: error.message
+        message: "Failed to fetch balances",
+        error: (error as Error).message
       };
     }
   })
-  
-  .get("/developers/:id", async ({db, params}) => {
+  .get("/balances/:id", async ({ db, params }: { db: any, params: { id: string } }) => {
     try {
-      const developerId = params.id
-      const res = await db.query("SELECT * FROM developers WHERE developer_id = $1", [developerId])
-      return res.rows[0]
+      const balanceId = params.id;
+      const res = await db.query("SELECT * FROM balances WHERE balance_id = $1", [balanceId]);
+      return res.rows[0];
     } catch (error) {
       console.error(error);
       return {
-        message: "Failed to fetch developer",
-        error: error.message
+        message: "Failed to fetch balance",
+        error: (error as Error).message
       };
     }
   })
-
-  .get("/gears", async ({ db }) => {
+  .get("/gears", async ({ db }: { db: any }) => {
     try {
       const res = await db.query("SELECT * FROM gears");
       return res.rows;
-    } catch (error) { 
+    } catch (error) {
       console.error(error);
       return {
         message: "Failed to fetch gears",
-        error: error.message
+        error: (error as Error).message
       };
     }
   })
-
-  .get("/gears/:id", async ({db, params}) => {
+  .get("/gears/:id", async ({ db, params }: { db: any, params: { id: string } }) => {
     try {
-      const gearId = params.id
-      const res = await db.query("SELECT * FROM gears WHERE gear_id = $1", [gearId])
-      return res.rows[0]
+      const gearId = params.id;
+      const res = await db.query("SELECT * FROM gears WHERE gear_id = $1", [gearId]);
+      return res.rows[0];
     } catch (error) {
       console.error(error);
       return {
         message: "Failed to fetch gear",
-        error: error.message
+        error: (error as Error).message
       };
     }
   })
-
-  .get("/characters", async ({ db }) => {
+  .get("/profile", async ({ db }: { db: any }) => {
     try {
-      const res = await db.query("SELECT * FROM characters");
+      const res = await db.query("SELECT * FROM profile");
       return res.rows;
     } catch (error) {
       console.error(error);
       return {
-        message: "Failed to fetch characters",
-        error: error.message
+        message: "Failed to fetch profile",
+        error: (error as Error).message
       };
     }
   })
-
-  .get("/characters/:id", async ({db, params}) => {
+  .get("/profile/:id", async ({ db, params }: { db: any, params: { id: string } }) => {
     try {
-      const characterId = params.id
-      const res = await db.query("SELECT * FROM characters WHERE character_id = $1", [characterId])
-      return res.rows[0]
+      const profileId = params.id;
+      const res = await db.query("SELECT * FROM profile WHERE profile_id = $1", [profileId]);
+      return res.rows[0];
     } catch (error) {
       console.error(error);
       return {
-        message: "Failed to fetch character",
-        error: error.message
+        message: "Failed to fetch profile",
+        error: (error as Error).message
       };
     }
   })
-
-  .get("/items", async ({ db }) => {
+  .get("/transactions", async ({ db }: { db: any }) => {
     try {
-      const res = await db.query("SELECT * FROM items");
+      const res = await db.query("SELECT * FROM transactions");
       return res.rows;
     } catch (error) {
       console.error(error);
       return {
-        message: "Failed to fetch items",
-        error: error.message
+        message: "Failed to fetch transactions",
+        error: (error as Error).message
       };
     }
   })
-
-  .get("/items/:id", async ({db, params}) => {
+  .post("/players", async ({ body, db }: { body: any, db: any }) => {
     try {
-      const itemId = params.id
-      const res = await db.query("SELECT * FROM items WHERE item_id = $1", [itemId])
-      return res.rows[0]
-    } catch (error) {
-      console.error(error);
-      return {
-        message: "Failed to fetch item",
-        error: error.message
-      };
-    }
-  })
-
-  .get("/player_item", async ({ db }) => {
-    try {
-      const res = await db.query("SELECT * FROM player_item");
-      return res.rows;
-    } catch (error) {
-      console.error(error);
-      return {
-        message: "Failed to fetch player item",
-        error: error.message
-      };
-    }
-  })
-
-  .post("/players", async ({ body, db }) => {
-    try {
-      const { username, email, password, favourite_animal} = body;  // Parsing body JSON langsung
+      const { username, email, password, favourite_animal } = body as { username: string, email: string, password: string, favourite_animal: string };
       console.log(`Creating Player: ${username}`);
 
-      // Masukkan data ke dalam database
       await db.query(
-        "INSERT INTO players (username, email, password, favourite_animal) VALUES ($1, $2, $3, $4)", 
+        "INSERT INTO players (username, email, password, favourite_animal) VALUES ($1, $2, $3, $4)",
         [username, email, password, favourite_animal]
       );
 
       return {
         message: "Player created successfully!",
-        player: { username, email, password, favourite_animal}
+        player: { username, email, password, favourite_animal }
       };
     } catch (error) {
       console.error(error);
       return {
         message: "Failed to create user",
-        error: error.message
+        error: (error as Error).message
       };
     }
   })
-
-    // Menambahkan login history baru
-  .post("/login-history", async ({ body, db }) => {
+  .post("/login-history", async ({ body, db }: { body: any, db: any }) => {
     try {
-      const { login_data, player_id } = body;
+      const { login_data, player_id } = body as { login_data: string, player_id: number };
       console.log(`Logging login for player ID: ${player_id}`);
-      
+
       await db.query(
-          "INSERT INTO Login_history (login_data, player_id) VALUES ($1, $2)",
-          [login_data, player_id]
+        "INSERT INTO Login_history (login_data, player_id) VALUES ($1, $2)",
+        [login_data, player_id]
       );
 
       return { message: "Login history added successfully!" };
     } catch (error) {
       console.error(error);
-      return { 
-        message: "Failed to add login history", 
-        error: error.message 
+      return {
+        message: "Failed to add login history",
+        error: (error as Error).message
       };
     }
   })
-
-    // Menambahkan pengumuman developer
-  .post("/developers", async ({ body, db }) => {
+  .post("/developers", async ({ body, db }: { body: any, db: any }) => {
     try {
-      const { login_history_id, anouncement_data} = body;
+      const { login_history_id, anouncement_data } = body as { login_history_id: number, anouncement_data: string };
       console.log(`Adding developer anouncement for login history ID: ${login_history_id}`);
-      
+
       await db.query(
-          "INSERT INTO developers (login_history_id, anouncement_data) VALUES ($1, $2)",
-          [login_history_id, anouncement_data]
+        "INSERT INTO developers (login_history_id, anouncement_data) VALUES ($1, $2)",
+        [login_history_id, anouncement_data]
       );
 
-      return { 
-        message: "Developers announcement added successfully!" 
+      return {
+        message: "Developers announcement added successfully!"
       };
     } catch (error) {
       console.error(error);
-      return { 
-        message: "Failed to add developer announcement", 
-        error: error.message 
+      return {
+        message: "Failed to add developer announcement",
+        error: (error as Error).message
       };
     }
   })
-  
-  .post("/gears", async ({ body, db }) => {
+  .post("/gears", async ({ body, db }: { body: any, db: any }) => {
     try {
-      const { gear_name, gear_type, gear_exp, gear_price, gear_grade, gear_description, base_atack, base_defense, base_intelligence, obtained_at, character_id, player_id } = body;
+      const { gear_name, gear_type, gear_exp, gear_price, gear_grade, gear_description, base_atack, base_defense, base_intelligence, obtained_at, character_id, player_id } = body as { gear_name: string, gear_type: string, gear_exp: number, gear_price: number, gear_grade: string, gear_description: string, base_atack: number, base_defense: number, base_intelligence: number, obtained_at: string, character_id: number, player_id: number };
       console.log(`Adding gear: ${gear_name}`);
-      
+
       await db.query(
-          "INSERT INTO gears (gear_name, gear_type, gear_exp, gear_price, gear_grade, gear_description, base_atack, base_defense, base_intelligence, obtained_at, character_id, player_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
-          [gear_name, gear_type, gear_exp, gear_price, gear_grade, gear_description, base_atack, base_defense, base_intelligence, obtained_at, character_id, player_id]
+        "INSERT INTO gears (gear_name, gear_type, gear_exp, gear_price, gear_grade, gear_description, base_atack, base_defense, base_intelligence, obtained_at, character_id, player_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
+        [gear_name, gear_type, gear_exp, gear_price, gear_grade, gear_description, base_atack, base_defense, base_intelligence, obtained_at, character_id, player_id]
       );
 
-      return { 
-        message: "Gear added successfully!" 
+      return {
+        message: "Gear added successfully!"
       };
     } catch (error) {
       console.error(error);
-      return { 
-        message: "Failed to add gear", 
-        error: error.message 
+      return {
+        message: "Failed to add gear",
+        error: (error as Error).message
       };
     }
   })
-
-  .post("/characters", async ({ body, db }) => {
+  .post("/characters", async ({ body, db }: { body: any, db: any }) => {
     try {
-      const { character_name, character_type, character_price, character_grade, base_attack, base_defense, base_intelligence, player_id } = body;
+      const { character_name, character_type, character_price, character_grade, base_attack, base_defense, base_intelligence, player_id } = body as { character_name: string, character_type: string, character_price: number, character_grade: string, base_attack: number, base_defense: number, base_intelligence: number, player_id: number };
       console.log(`Adding character: ${character_name}`);
-      
+
       await db.query(
-          "INSERT INTO characters (character_name, character_type, character_price, character_grade, base_attack, base_defense, base_intelligence, player_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-          [character_name, character_type, character_price, character_grade, base_attack, base_defense, base_intelligence, player_id]
+        "INSERT INTO characters (character_name, character_type, character_price, character_grade, base_attack, base_defense, base_intelligence, player_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+        [character_name, character_type, character_price, character_grade, base_attack, base_defense, base_intelligence, player_id]
       );
 
-      return { 
-        message: "Character added successfully!" 
+      return {
+        message: "Character added successfully!"
       };
     } catch (error) {
       console.error(error);
-      return { 
-        message: "Failed to add character", 
-        error: error.message 
+      return {
+        message: "Failed to add character",
+        error: (error as Error).message
       };
     }
   })
-
-  .post("/items", async ({ body, db }) => {
+  .post("/items", async ({ body, db }: { body: any, db: any }) => {
     try {
-      const { item_name, item_category, item_subtype, item_price, is_tradeable, item_description, obtainable_from } = body;
+      const { item_name, item_category, item_subtype, item_price, is_tradeable, item_description, obtainable_from } = body as { item_name: string, item_category: string, item_subtype: string, item_price: number, is_tradeable: boolean, item_description: string, obtainable_from: string };
       console.log(`Adding item: ${item_name}`);
-      
+
       await db.query(
-          "INSERT INTO items (item_name, item_category, item_subtype, item_price, is_tradeable, item_description, obtainable_from) VALUES ($1, $2, $3, $4, $5, $6, $7)",
-          [item_name, item_category, item_subtype, item_price, is_tradeable, item_description, obtainable_from]
+        "INSERT INTO items (item_name, item_category, item_subtype, item_price, is_tradeable, item_description, obtainable_from) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+        [item_name, item_category, item_subtype, item_price, is_tradeable, item_description, obtainable_from]
       );
 
       return {
@@ -305,19 +277,18 @@ app
       console.error(error);
       return {
         message: "Failed to add item",
-        error: error.message
+        error: (error as Error).message
       };
     }
   })
-
-  .post("/player_item", async ({ body, db }) => {
+  .post("/player_item", async ({ body, db }: { body: any, db: any }) => {
     try {
-      const { quantity, obtained_timestamp, is_equipped, is_used, player_id, item_id } = body;
+      const { quantity, obtained_timestamp, is_equipped, is_used, player_id, item_id } = body as { quantity: number, obtained_timestamp: string, is_equipped: boolean, is_used: boolean, player_id: number, item_id: number };
       console.log(`Adding player item: ${item_id}`);
-      
+
       await db.query(
-          "INSERT INTO player_item (quantity, obtained_timestamp, is_equipped, is_used, player_id, item_id) VALUES ($1, $2, $3, $4, $5, $6)",
-          [quantity, obtained_timestamp, is_equipped, is_used, player_id, item_id]
+        "INSERT INTO player_item (quantity, obtained_timestamp, is_equipped, is_used, player_id, item_id) VALUES ($1, $2, $3, $4, $5, $6)",
+        [quantity, obtained_timestamp, is_equipped, is_used, player_id, item_id]
       );
 
       return {
@@ -327,12 +298,10 @@ app
       console.error(error);
       return {
         message: "Failed to add player item",
-        error: error.message
+        error: (error as Error).message
       };
     }
   })
-
-
   .listen(3000);
 
 console.log(

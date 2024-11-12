@@ -14,7 +14,7 @@ bun run dev
 
 Open http://localhost:3000/ with your browser to see the result.
 
-Menggunakan Docker untuk server database postgresql
+## Menggunakan Docker untuk server database postgresql
 Pertama-tama, setup docker terlebih dahulu
 
 Step 1 
@@ -163,5 +163,52 @@ Menghapus semua image
 docker rmi $(docker images -q)
 ```
 
+## Menggunakan dbmate untuk migrasi database
+Step 1
+Install dbmate
+```bash
+scoop install dbmate
+```
+
+Step 2
+Membuat file dbmate
+```bash
+dbmate new <nama_tabel>
+```
+
+Step 3
+Membuat file migrasi
+```bash
+dbmate up
+```
+
+Step 4
+Menghapus file migrasi
+```bash
+dbmate down
+```
+
+Step 5
+Menghapus semua file migrasi
+```bash
+dbmate drop
+```
+
+## Menggunakan Docker compose untuk konfigurasi container database
+Step 1
+Membuat file docker-compose.yml
+Isi file docker-compose.yml
+Kebetulan file docker-compose.yml sudah dibuat
+
+Step 2
+Membuat container
+```bash
+docker-compose up -d
+```
+Step 3
+Menghentikan container
+```bash
+docker-compose down
+```
 
 

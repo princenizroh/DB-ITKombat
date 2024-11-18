@@ -64,7 +64,8 @@ export const createDb = async () => {
         host: 'localhost',
         database: 'itkombat',
         password: 'admin',
-        port: 5434,
+        // port: 5434, // port itkombat-db-compose
+        port: 5433, // port itkombat-db
     });
 
     await client.connect();
@@ -89,7 +90,8 @@ const client = new Client({
     host: 'localhost',
     database: 'itkombat',
     password: 'admin',
-    port: 5434, 
+    // port: 5434, // port itkombat-db-compose
+    port: 5433, // port itkombat-db
 });
 
 const testConnection = async () => {

@@ -2,6 +2,7 @@ import { Elysia, t } from "elysia";
 import { createDb } from "@/db";
 import { playerRoutes } from "@/routes/playerRoutes";
 import { Service } from "@/services/fibo";
+import { swagger } from "@elysiajs/swagger";
 
 
 const app = new Elysia()
@@ -10,8 +11,23 @@ const db = await createDb()
 // app.decorate('store', { db });
 // playerRoutes(app);
 app
+  .use(
+    swagger({
+      documentation: {
+        info: {
+          title: "Elysia Demo",
+          description: "A demo of Elysia",
+          version: "1.0.0",
+        },
+      },
+    })
+  )
+
   .decorate('db', db)
-  .get("/", () => "Hello Elysia")
+  // .get("/", () => "Hello Elysia")
+  .get("/", ({ set }) =>  {
+    set.redirect = "/swagger";
+  })
   .get("/fibo/:number", ({ params }: { params: { number: string } }) => {
     const number = Number(params.number);
     return Service.fibo(number);

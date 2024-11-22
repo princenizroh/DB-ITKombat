@@ -1,33 +1,222 @@
 import { Elysia, t } from "elysia";
-import { createDb } from "@/db";
+import { db, SetupDatabase, dbFunction} from "@/config/db";
+import { cors } from "@elysiajs/cors";
 import { playerRoutes } from "@/routes/playerRoutes";
+import { isPlayerMiddleware } from "@/middlewares/isPlayerMiddleware";
 import { Service } from "@/services/fibo";
 import { swagger } from "@elysiajs/swagger";
-
+import { playersRoutes } from "@/routes/playersRoutes"
+import { playerLogin, playerRegister, playerLogout } from "@/models/playerModel";
+import { registerSummary } from "@/summary/registerSummary";
+import { loginSummary } from "@/summary/loginSummary";
+import { logoutSummary } from "@/summary/logoutSummary";
+import moment from 'moment-timezone';
+import jwt from "@elysiajs/jwt";
+import { REFRESH_TOKEN_EXP,ACCESS_TOKEN_EXP,JWT_NAME } from "@/config/constant-jwt";
+import { getExpTimestamp } from "./utils/getExpTimestamp";
 
 const app = new Elysia()
-const db = await createDb()
 
-// app.decorate('store', { db });
-// playerRoutes(app);
+SetupDatabase()
 app
+  .use(cors())
+  .use(isPlayerMiddleware)
+  .use(playersRoutes)
   .use(
     swagger({
       documentation: {
         info: {
           title: "Elysia Demo",
-          description: "A demo of Elysia",
+          description: "Database ITKombat",
           version: "1.0.0",
         },
+        components: {
+          securitySchemes: {
+            JwtAuth: {
+              type: "http",
+              scheme: "bearer",
+              bearerFormat: "JWT"
+            }
+          }
+        },
+        servers: [{ url: "http://localhost:3000" }]
       },
+      swaggerOptions: {
+        persistAuthorization: true
+      }  
     })
   )
-
   .decorate('db', db)
-  // .get("/", () => "Hello Elysia")
   .get("/", ({ set }) =>  {
     set.redirect = "/swagger";
   })
+  .post("/login", 
+    async ({jwt, body, db, set, cookie: { accesToken } }: {jwt: any, body: { username: string, password: string }, db: any, set: any, cookie: any }) => {
+    const { username, password } = body;
+    try {
+      const [result] = await db('login', [username, password]);
+      console.log("Login result:", result);
+
+      if (!result) {
+          set.status = 400;
+          return {
+              success: false,
+              message: "Invalid username or password",
+              error: "Invalid request"
+          };
+      }
+
+      const payload = result;
+      console.log("Payload:", payload);
+      const secret = Bun.env.JWT_SECRET!;
+      console.log("Secret:", secret);
+      const exp = getExpTimestamp(ACCESS_TOKEN_EXP);
+      console.log("Exp:", exp);
+      const timestamp = moment().tz('Asia/Kuala_Lumpur').format('YYYY-MM-DD HH:mm:ss');
+      const accesJWTToken = await jwt.sign({          
+          sub: payload, 
+          exp: exp
+      })
+      console.log("JWT Token:", accesJWTToken);
+      accesToken.set ({
+          value: accesJWTToken,
+          httpOnly: true,
+          maxAge: ACCESS_TOKEN_EXP,
+          path: '/',
+        });
+      return {
+        success: true,
+        message: 'Login successful',
+        data: result,
+        accesToken: accesJWTToken,
+        timestamp
+      };
+    } catch (error) {
+      console.error('Error during login:', error);
+      return {
+        success: false,
+        message: "Login failed",
+        error: (error as Error).message
+      };
+    } 
+  },{ 
+      body: playerLogin,
+      ...loginSummary
+    }) 
+  .post("/register", async ({ body, jwt, db, set }: { body: { username: string, email: string, password: string}, jwt: any ,db: any, set: any }) => {
+    
+    const { username, email, password } = body;
+    try {
+      const [result] = await db('register',
+        [username, email, password]
+      );
+      if (!result) {
+          set.status = 400;
+          return {
+              success: false,
+              message: "Invalid username or password",
+              error: "Invalid request"
+          };
+      }
+      const payload = result;
+      console.log("Payload:", payload);
+      const secret = Bun.env.JWT_SECRET!;
+      const exp = getExpTimestamp(ACCESS_TOKEN_EXP);
+      const timestamp = moment().tz('Asia/Kuala_Lumpur').format('YYYY-MM-DD HH:mm:ss');
+      const accesJWTToken = await jwt.sign(payload, secret , {expiresIn: exp});
+      return {
+        success: true,
+        message: "Register successful",
+        data: result,
+        accesToken: accesJWTToken,
+        timestamp
+      };
+    } catch (error) {
+      console.error('Error during register:', error);
+      return {
+        success: false,
+        message: "Register failed",
+        error: (error as Error).message,
+      };
+    } 
+  }, { 
+      body: playerRegister,
+      ...registerSummary
+    })
+  .post("/logout", async ({ body, db, cookie: { accesToken }, set }: { jwt: any, body:any,  set: any, db: any, cookie: any }) => {
+    const { username } = body;
+    try {
+      accesToken.remove();
+
+      const [result] = await db('logout', [username]); 
+
+      return {
+        success: true,
+        message: "Logout successful",
+        data: result
+      }
+    } catch (error) {
+      console.error('Error during logout:', error);
+      return {
+        success: false,
+        message: "Logout failed",
+        error: (error as Error).message,
+      };
+    }
+  }, {
+      body: playerLogout,
+      ...logoutSummary
+    })
+  .get("/get/:id", async ({ jwt, set, headers, db}: { params: { id: string }, jwt: any ,headers: any, set: any, db: any }) => { 
+    const bearer = headers.authorization?.split(' ')[1];
+    const jwtPayload = await jwt.verify(bearer);
+    console.log("JWT Payload:", jwtPayload); // Log payload jika token valid
+
+    if (!jwtPayload) {
+        set.status = 401;
+
+        return {
+            success: false,
+            message: "Unauthorized."
+        }
+    }
+
+    const id = jwtPayload.sub.p_player_id;
+    console.log("ID:", id); 
+
+    const user = await db('getPlayerById', [id]);
+
+    return {
+        success: true,
+        message: "Successfully retrieved user.",
+        data: user
+    }
+  },{
+      params: t.Object({
+          id: t.String({
+              required: true,
+              example: '1'
+          })
+      }),
+    })
+
+  .get("/activity", async () => {
+    try {
+      const result = await dbFunction("get_player_activity");
+      return {
+        success: true,
+        message: 'get activity success',
+        data: result,
+      };
+    } catch (error) {
+      console.error(error);
+      return {
+        message: "Failed to fetch activity",
+        error: (error as Error).message
+      };
+    }
+  })
+  .get("/Hello", () => "Hello Elysia")
   .get("/fibo/:number", ({ params }: { params: { number: string } }) => {
     const number = Number(params.number);
     return Service.fibo(number);
@@ -42,6 +231,7 @@ app
     try {
       const res = await db.query("SELECT * FROM player");
       return res.rows;
+      db.end()
     } catch (error) {
       console.error(error);
       return {
@@ -318,7 +508,7 @@ app
       };
     }
   })
-  .listen(3000);
+  .listen(Bun.env.PORT!);
 
 console.log(
   `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`

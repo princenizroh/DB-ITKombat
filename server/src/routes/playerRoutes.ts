@@ -1,5 +1,5 @@
 import { Elysia, t } from "elysia";
-import { getAllPlayers, getPlayer } from "@/controllers/playerController";
+import { getAllPlayers, getPlayer } from "@/controllers/playersController";
 
 export const playerRoutes = (app: Elysia) => {
   app

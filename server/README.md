@@ -162,8 +162,7 @@ Menghapus semua image
 ```bash
 docker rmi $(docker images -q)
 ```
-
-## Menggunakan dbmate untuk migrasi database
+dbmate untuk migrasi database
 Step 1
 Install dbmate
 ```bash
@@ -193,6 +192,13 @@ Menghapus semua file migrasi
 ```bash
 dbmate drop
 ```
+
+Step 6
+Mengembalikan file migrasi
+```bash
+dbmate rollback
+```
+
 
 ## Menggunakan Docker compose untuk konfigurasi container database
 Step 1

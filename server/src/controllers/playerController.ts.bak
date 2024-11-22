@@ -1,0 +1,159 @@
+import { Elysia, t } from "elysia";
+import jwt from "@elysiajs/jwt"
+import { loginPlayer } from "@/models/playerModel"
+import { isPlayerMiddleware } from "@/middlewares/isPlayerMiddleware"
+import { isAdminMiddleware } from "@/middlewares/isAdminMiddleware"
+import { JWT_NAME } from "@/config/constant-jwt"
+
+const app = new Elysia({ prefix: "/api" });
+const playerController = () => {
+  app
+    .use(jwt({
+      name: JWT_NAME,
+      secret: Bun.env.JWT_SECRET!
+    }))
+    .group("/players", app => {
+      return app
+      .use(isPlayerMiddleware)
+      .onBeforeHandle(({ authorized }) => {
+          if (!authorized) {
+            return {
+              success: false,
+              message: "Forbidden."
+            }
+          }
+        })
+      .get("/get/:id", async ({ jwt, params, set, headers }) => {
+          const bearer = headers.authorization?.split(" ")[1]
+          const jwtPayload = await jwt.verify(bearer!)
+
+          if (!jwtPayload) {
+            return {
+              success: false,
+              message: "Unauthorized"
+            }
+          }
+
+          const playerId = jwtPayload.sub;
+
+          if(String(playerId) !== params.id) {
+            set.status = 403;
+            return {
+              success: false,
+              message: "Forbidden."
+            }
+          }
+
+          const player = getPlayerById()
+
+          return {
+            success: true,
+            message: "Success retrieve player data",
+            data: player 
+          }
+        }, {
+            params: t.Object({
+              id: t.String({
+                required: true
+              })
+            }),
+            detail: {
+            summar: "Get player data by id",
+            description: "Get player data by id",
+            tags: ["Player"],
+            security: [{ JwtAuth: [] }],
+            paramaters: [
+              {
+                name: "id",
+                in: "path",
+                required: true,
+                schema: {
+                  type: "string"
+                },
+                description: "Player id.",
+                example: "1"
+              }
+            ],
+            response: {
+              200: {
+                description: "Success retrieve player data",
+                content: {
+                    "application/json": {
+                      schema: {
+                        type: "object",
+                        properties: {
+                          success: {
+                            type: "boolean",
+                            description: "Status of the request",
+                            example: true
+                          },
+                          message: {
+                            type: "string",
+                            description: "Message of the request",
+                            example: "Success retrieve player data"
+                          },
+                          data: {
+                            type: "number",
+                            properties: {
+                              id: {
+                                type: "number",
+                                description: "Player id.",
+                                example: 1
+                              }, name: {
+                                type: "string",
+                                description: "Player name.",
+                                example: "Zaky"
+                              }, email: {
+                                type: "string",
+                                description: "Player email.",
+                                example: "Dio"
+                              }, role: {
+                                type: "string",
+                                description: "Player role.",
+                                example: "player"
+                              }, createdAt: {
+                                type: "string",
+                                description: "Player created at.",
+                                example: "2021-08-25T10:00:00.000Z" 
+                              }
+                            },
+                            required: ["id", "name", "email", "role", "createdAt"]
+                          }
+                        }
+                      }
+
+                    }
+                  }
+              },
+                404: {
+                  description: `Player not found`,
+                  content: {
+                    "application/json":{
+                      schema: {
+                        type: "object",
+                        properties: {
+                          success: {
+                            type: "boolean",
+                            description: "Status of the request",
+                            example: false
+                          },
+                          message: {
+                            type: "string",
+                            description: "Message of the request",
+                            example: "Player not found"
+                          }
+                        },
+                        required: ["success", "message"]
+                      }
+                    }
+                  }
+
+                }
+            }
+          }
+          })
+    })
+}
+  
+export { playerController }
+

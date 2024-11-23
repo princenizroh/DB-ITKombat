@@ -1,7 +1,7 @@
 import { Elysia } from 'elysia';
-import { authRouter } from './api/index';
+import { apiRouter } from '@/routes/api';
 
 const router = new Elysia()
-  .use(authRouter)
+  .use(apiRouter)
 
-export { router as apiRouter };
+export { router };

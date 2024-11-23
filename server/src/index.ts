@@ -7,10 +7,11 @@ import { Service } from "@/services/fibo";
 import { swagger } from "@elysiajs/swagger";
 import { playersRoutes } from "@/routes/playersRoutes"
 import { playerLogin, playerRegister, playerLogout } from "@/models/playerModel";
-import { registerSummary } from "@/summary/registerSummary";
-import { loginSummary } from "@/summary/loginSummary";
-import { logoutSummary } from "@/summary/logoutSummary";
+import { registerSummary } from "@/docs/registerSummary";
+import { loginSummary } from "@/docs/loginSummary";
+import { logoutSummary } from "@/docs/logoutSummary";
 import moment from 'moment-timezone';
+import { router } from "@/routes";
 import jwt from "@elysiajs/jwt";
 import { REFRESH_TOKEN_EXP,ACCESS_TOKEN_EXP,JWT_NAME } from "@/config/constant-jwt";
 import { getExpTimestamp } from "./utils/getExpTimestamp";
@@ -22,6 +23,7 @@ app
   .use(cors())
   .use(isPlayerMiddleware)
   .use(playersRoutes)
+  .use(router)
   .use(
     swagger({
       documentation: {
@@ -50,59 +52,59 @@ app
   .get("/", ({ set }) =>  {
     set.redirect = "/swagger";
   })
-  .post("/login", 
-    async ({jwt, body, db, set, cookie: { accesToken } }: {jwt: any, body: { username: string, password: string }, db: any, set: any, cookie: any }) => {
-    const { username, password } = body;
-    try {
-      const [result] = await db('login', [username, password]);
-      console.log("Login result:", result);
-
-      if (!result) {
-          set.status = 400;
-          return {
-              success: false,
-              message: "Invalid username or password",
-              error: "Invalid request"
-          };
-      }
-
-      const payload = result;
-      console.log("Payload:", payload);
-      const secret = Bun.env.JWT_SECRET!;
-      console.log("Secret:", secret);
-      const exp = getExpTimestamp(ACCESS_TOKEN_EXP);
-      console.log("Exp:", exp);
-      const timestamp = moment().tz('Asia/Kuala_Lumpur').format('YYYY-MM-DD HH:mm:ss');
-      const accesJWTToken = await jwt.sign({          
-          sub: payload, 
-          exp: exp
-      })
-      console.log("JWT Token:", accesJWTToken);
-      accesToken.set ({
-          value: accesJWTToken,
-          httpOnly: true,
-          maxAge: ACCESS_TOKEN_EXP,
-          path: '/',
-        });
-      return {
-        success: true,
-        message: 'Login successful',
-        data: result,
-        accesToken: accesJWTToken,
-        timestamp
-      };
-    } catch (error) {
-      console.error('Error during login:', error);
-      return {
-        success: false,
-        message: "Login failed",
-        error: (error as Error).message
-      };
-    } 
-  },{ 
-      body: playerLogin,
-      ...loginSummary
-    }) 
+  // .post("/login", 
+  //   async ({jwt, body, db, set, cookie: { accesToken } }: {jwt: any, body: { username: string, password: string }, db: any, set: any, cookie: any }) => {
+  //   const { username, password } = body;
+  //   try {
+  //     const [result] = await db('login', [username, password]);
+  //     console.log("Login result:", result);
+  //
+  //     if (!result) {
+  //         set.status = 400;
+  //         return {
+  //             success: false,
+  //             message: "Invalid username or password",
+  //             error: "Invalid request"
+  //         };
+  //     }
+  //
+  //     const payload = result;
+  //     console.log("Payload:", payload);
+  //     const secret = Bun.env.JWT_SECRET!;
+  //     console.log("Secret:", secret);
+  //     const exp = getExpTimestamp(ACCESS_TOKEN_EXP);
+  //     console.log("Exp:", exp);
+  //     const timestamp = moment().tz('Asia/Kuala_Lumpur').format('YYYY-MM-DD HH:mm:ss');
+  //     const accesJWTToken = await jwt.sign({          
+  //         sub: payload, 
+  //         exp: exp
+  //     })
+  //     console.log("JWT Token:", accesJWTToken);
+  //     accesToken.set ({
+  //         value: accesJWTToken,
+  //         httpOnly: true,
+  //         maxAge: ACCESS_TOKEN_EXP,
+  //         path: '/',
+  //       });
+  //     return {
+  //       success: true,
+  //       message: 'Login successful',
+  //       data: result,
+  //       accesToken: accesJWTToken,
+  //       timestamp
+  //     };
+  //   } catch (error) {
+  //     console.error('Error during login:', error);
+  //     return {
+  //       success: false,
+  //       message: "Login failed",
+  //       error: (error as Error).message
+  //     };
+  //   } 
+  // },{ 
+  //     body: playerLogin,
+  //     ...loginSummary
+  //   }) 
   .post("/register", async ({ body, jwt, db, set }: { body: { username: string, email: string, password: string}, jwt: any ,db: any, set: any }) => {
     
     const { username, email, password } = body;

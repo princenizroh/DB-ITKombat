@@ -1,9 +1,6 @@
-import { Elysia, t } from "elysia";
 import moment from 'moment-timezone'
 import { db } from "@/config/db";
-import { loginSummary } from "@/docs/loginSummary";
 import jwt from "@elysiajs/jwt"
-import { playerLogin } from "@/models/playerModel"
 import { getExpTimestamp } from "@/utils/getExpTimestamp"
 import { 
   ACCESS_TOKEN_EXP,
@@ -59,11 +56,8 @@ const loginController = async ({ jwt, db, body, set, cookie: { accessToken }}: {
         error: (error as Error).message
       };
     } 
-  },{ 
-      body: playerLogin,
-      ...loginSummary
-    } 
-}
+  }
+
 
 export { loginController }
 

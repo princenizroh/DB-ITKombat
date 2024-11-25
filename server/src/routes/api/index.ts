@@ -1,11 +1,14 @@
 import { Elysia } from 'elysia';
-import { loginRouter } from './auth/loginRouter';
-import { logoutRouter } from './auth/logoutRouter';
-import { registerRouter } from './auth/registerRouter';
+import { signinRouter } from './auth/signinRouter';
+import { signoutRouter } from './auth/signoutRouter';
+import { signupRouter } from './auth/signupRouter';
 
-export const apiRouter = new Elysia()
-  .use(loginRouter)
-  // .use(registerRouter)
-  // .use(logoutRouter);
+const authRouter = new Elysia();
+authRouter.group('/membership', (group) => {
+  group.use(signinRouter);
+  group.use(signupRouter);
+  group.use(signoutRouter);
+  return group;
+});
 
-
+export { authRouter }

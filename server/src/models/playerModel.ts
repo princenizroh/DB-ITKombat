@@ -6,10 +6,10 @@ const playerSchema = t.Object({
   username: t.String(),
   email: t.String(),
   password: t.String(),
-  role: t.Enum({ admin: 'admin', user: 'user' }),
+  role: t.Enum({ admin: 'admin', user: 'player' }),
 })
 
-export const playerLogin = t.Object({
+export const playerSigninSchema = t.Object({
   username: t.String({
     required: true,
     example: 'zaki'
@@ -17,33 +17,24 @@ export const playerLogin = t.Object({
   password: t.String({
     required: true,
     example: 'admin123',
-    minLength: 8
   }),
 })
 
-export const playerRegister = t.Object({
+export const playerSignupSchema = t.Object({
   username: t.String({
     required: true,
     example: 'zaki'
   }),
   email: t.String({
     required: true,
-    format: "email",
     example: 'zaki@gmail.com'
   }),
   password: t.String({
     required: true,
     example: 'admin123',
-    minLength: 8
   }),
 })
 
-export const playerLogout = t.Object({
-  username: t.String({
-    required: true,
-    example: 'zaki'
-  }),
-})
 
 export const loginPlayer = async (username: string, password: string) => {
   await db('login', [username, password]);

@@ -22,18 +22,57 @@ async function callProcedure(procName: string, params: any[]) {
   }
 }
 
-// Fungsi untuk memanggil stored procedure PostgreSQL
-async function callFunction(procName: string, params: any[] = []) {
-  const placeholders = params.map((_, i) => `$${i+1}`).join(",");
-  const query = `SELECT * FROM ${procName}(${placeholders})`; // Menggunakan SELECT untuk mendapatkan hasil
+// callProcedure('<name procedure>', [params]);
+
+// Fungsi untuk memanggil Function PostgreSQL
+async function callFunction(
+  procName: string,
+  columns: string[] = [],
+  key: string | null = null,
+  value: any | null = null
+) {
+  // Pilihan kolom (default semua kolom)
+  const selectedColumns = columns.length > 0 ? columns.join(", ") : "*";
+
+  // Tambahkan WHERE jika key dan value diberikan
+  const whereClause = key && value ? `WHERE ${key} = $1` : "";
+
+  // Create query SQL
+  const query = `SELECT ${selectedColumns} FROM ${procName}() ${whereClause}`;
+
   const client = await pool.connect();
   try {
+    const params = value !== null ? [value] : []; // Gunakan value jika ada
     const result = await client.query(query, params);
     return result.rows || [];
   } finally {
     client.release();
   }
 }
+
+// callFunction('<name function>', ['<column>'], '<key>', '<value>');
+
+export async function callFunctionQuery(
+  procName: string,
+  columns: string[] = [],
+  key: string | null = null,
+  value: any | null = null,
+  params: any [] = []
+) {
+  const selectedColumns = columns.length > 0 ? columns.join(", ") : "*";
+  const whereClause = key && value ? `WHERE ${key} = $1` : "";
+  const query = `SELECT ${selectedColumns} FROM ${procName}() ${whereClause}`;
+  const client = await pool.connect();
+
+  try {
+    const queryParam = value !== null ? [value] : [];
+    const result = await client.query(query, [...queryParam, ...params]);
+    return result.rows || [];
+  } finally {
+    client.release();
+  }
+}
+
 
 
 // INI UNTUK YANG CONNECT

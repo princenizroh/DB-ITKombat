@@ -1,7 +1,7 @@
 import { Elysia } from "elysia";
 import { jwt } from "@elysiajs/jwt";
 import { getPlayerById } from "@/models/playerModel";
-import { JWT_NAME } from "@/config/constant-jwt";
+import { JWT_NAME } from "@/config/jwt";
 
 const isPlayerMiddleware = (app: Elysia) => {
   return app
@@ -11,12 +11,9 @@ const isPlayerMiddleware = (app: Elysia) => {
         secret: Bun.env.JWT_SECRET!,
       })
     )
-    .derive(async ({ jwt, set, headers, request }) => {
+    .derive(async ({ jwt, set, headers}) => {
       const bearer = headers.authorization?.split(' ')[1];
       // hanle if accesToken is not exist
-      if (request.url.includes('/swagger')) {
-        return; // Biarkan permintaan ke Swagger tanpa memeriksa token
-      }
       if (!bearer) {
         set.status = 401;
         return {

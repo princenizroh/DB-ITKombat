@@ -1,7 +1,11 @@
 import { Elysia } from 'elysia';
-import { apiRouter } from '@/routes/api';
+import { authRouter } from '@/routes/api';
+import { mypageRouter } from '@/routes/api/mypage';
+import { isPlayerMiddleware } from '@/middlewares/isPlayerMiddleware';
 
 const router = new Elysia()
-  .use(apiRouter)
+  .use(isPlayerMiddleware)
+  .use(authRouter)
+  .use(mypageRouter);
 
 export { router };

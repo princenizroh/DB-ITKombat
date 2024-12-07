@@ -11,11 +11,13 @@ const mypageInfoRouter = new Elysia()
         body: mypageInfoSchema,
         ...mypageInfoSummary
       }
-    )
-  .group('/info', group => {
-      group.use(mypageInfoViewRouter);
-      return group;
-  });
+  )
+  .group(
+      '/info', group => {
+          group.use(mypageInfoViewRouter);
+          return group;
+      }
+  );
 
 export { mypageInfoRouter };
 

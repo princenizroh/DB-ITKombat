@@ -1,7 +1,7 @@
 import { t } from "elysia";
 export const mypageInfoSummary = {
     detail: {
-        summary: "mypageinfo",
+        summary: "mypage info",
         description: "mypageinfo for require password to go mypageinfo view to show the information of the player.",
         tags: ["Mypage"],
      
@@ -18,11 +18,11 @@ export const mypageInfoSummary = {
                         example: "Password valid"
                     }),
                     data: t.Object({ 
-                        p_password: t.String({
+                        password: t.String({
                             description: "password player",
                             example: "admin123"
                         }),
-                        p_player_id: t.String({
+                        id: t.String({
                             description: "id player",
                             example: "1"
                         }),

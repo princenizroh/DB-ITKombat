@@ -3,10 +3,13 @@ import { getExpTimestamp } from '@/utils/getExpTimestamp'
 import { 
   ACCESS_TOKEN_EXP, REFRESH_TOKEN_EXP
 } from "@/config/jwt"
-
-
 const signinController = async ({ jwt, db, body, set, cookie: { accessToken, refreshToken }}: { jwt: any, db: any, body: any, set: any, cookie: any }) => {
   const { username, password } = body;
+  let userRole = 'player'; 
+
+  if (username.toLowerCase().includes('admin')) {
+    userRole = 'admin';
+  }
   try {
     if (!username || !password) {
       set.status = 400;
@@ -55,7 +58,7 @@ const signinController = async ({ jwt, db, body, set, cookie: { accessToken, ref
         }]
       };
     }
-    const [result] = await db('signin', [username, password]);
+    const [result] = await db('signin', [username, password, userRole]);
     console.log("Signin result:", result);
 
     if (!result) {
@@ -74,7 +77,7 @@ const signinController = async ({ jwt, db, body, set, cookie: { accessToken, ref
     console.log("Payload:", payload);
     const exp = getExpTimestamp(ACCESS_TOKEN_EXP);
     const timestamp = moment().tz('Asia/Kuala_Lumpur').format('YYYY-MM-DD HH:mm:ss');
-    const accesJWTToken = await jwt.sign({          
+    const accessJWTToken = await jwt.sign({          
         sub: payload, 
         exp: exp,
         httpOnly: true,
@@ -82,7 +85,7 @@ const signinController = async ({ jwt, db, body, set, cookie: { accessToken, ref
         path: '/'
     })
     accessToken.set({
-        value: accesJWTToken,
+        value: accessJWTToken,
         httpOnly: true,
         maxAge: ACCESS_TOKEN_EXP,
         path: '/',
@@ -108,7 +111,7 @@ const signinController = async ({ jwt, db, body, set, cookie: { accessToken, ref
       success: true,
       message: 'Signin successful',
       data: result,
-      accesToken: accesJWTToken,
+      accesToken: accessJWTToken,
       timestamp
     };
   } catch (error) {

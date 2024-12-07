@@ -55,23 +55,21 @@ export const signupSummary = {
                     }),
                     message: t.String({
                         description: "Message indicating the result of the request.",
-                        example: "Invalid request."
+                        example: "Username atau password atau email tidak boleh kosong"
                     }),
                     errors: t.Array(t.Object({
                         field: t.String({
                             description: "Field name.",
-                            example: "email and username"
+                            example: "Username or email or password is required"
                         }),
                         message: t.String({
                             description: "Error message.",
-                            example: "Invalid email and username."
+                            example: "Invalid request."
                         }),
                     }), {
                         description: "Array of errors."
                     })
-                }, {
-                    required: ["success", "message", "errors"]
-                })
+                }),
             },
             422: {
                 description: "Unprocessable Content",

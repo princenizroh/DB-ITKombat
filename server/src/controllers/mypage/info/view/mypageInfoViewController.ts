@@ -1,25 +1,35 @@
-const mypageInfoViewController = async ({ jwt, dbFunction, cookie: { accessToken }, set}: { jwt: any, dbFunction: any, cookie: any, set: any }) => {
+import { dbFunction } from "@/config/db";
+
+async function getMyPageInfo(player_id: any) {
+  const columns = ['username', 'email', 'password'];
+  const result = await dbFunction('get_mypage_info', columns, ['player_id'], [player_id]);
+  return result;
+}
+
+const mypageInfoViewController = async ({ jwt, cookie: { accessToken, accessMypageToken }, set}: { jwt: any, cookie: any, set: any }) => {
   try{
     const accessTokenValue = accessToken.value;
-    if(!accessTokenValue) {
+    const accessMypageTokenValue = accessMypageToken.value;
+    if(!accessMypageTokenValue) { 
       set.status = 401;
       return {
         success: false,
-        message: "Silahkan signin terlebih dahulu",
+        message: "Akses invalid",
         error: [{
-          field: "accessToken",
+          field: "accessMypageToken",
           message: "Unauthorized"
-        }]
+        }],
+        redirect: "/mypage/info"
       }
     }
     const jwtPayload = await jwt.verify(accessTokenValue);
-    const id = jwtPayload.sub.p_player_id;
-    const colums = ['player_id','username', 'email', 'password'];
-    const [result] = await dbFunction('get_mypage_info', colums, 'player_id', id);
+    console.log("Payload:", jwtPayload);
+    const player_id = jwtPayload.sub.p_player_id;
+    const [result] = await getMyPageInfo(player_id);
     set.status = 200;
     return {
       success: true,
-      message: "View mypage info success",
+      message: "Menampilkan informasi mypage berhasil",
       data: result
     }
 

@@ -2,13 +2,30 @@ import { Elysia } from 'elysia';
 import { signinRouter } from './auth/signinRouter';
 import { signoutRouter } from './auth/signoutRouter';
 import { signupRouter } from './auth/signupRouter';
+import { topupUktRouter } from './topup/topupUktRouter';
+import { topupDanusRouter } from './topup/topupDanusRouter';
+import { topupHistoryRouter } from './topup/topupHistoryRouter';
+import { getPackagesRouter } from './topup/getPackagesRouter';
+import { transactionRouter } from './topup/transaction/'
 
-const authRouter = new Elysia();
-authRouter.group('/membership', (group) => {
-  group.use(signinRouter);
-  group.use(signupRouter);
-  group.use(signoutRouter);
+const appRouter = new Elysia()
+  .group('/topup', (group) => {
+  group
+    .use(topupUktRouter)
+    .use(topupDanusRouter)
+    .use(topupHistoryRouter)
+    .use(getPackagesRouter)
+    .use(transactionRouter)
   return group;
 });
 
-export { authRouter }
+const authRouter = new Elysia()
+  .group('/membership', (group) => {
+  group
+    .use(signinRouter)
+    .use(signupRouter)
+    .use(signoutRouter)
+  return group;
+});
+
+export { appRouter, authRouter };

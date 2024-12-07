@@ -11,44 +11,32 @@ const isPlayerMiddleware = (app: Elysia) => {
         secret: Bun.env.JWT_SECRET!,
       })
     )
-    .derive(async ({ jwt, set, headers}) => {
-      const bearer = headers.authorization?.split(' ')[1];
-      // hanle if accesToken is not exist
-      if (!bearer) {
+    .derive(async ({ jwt, set, cookie }: { jwt: any, set: any, cookie: any }) => {
+      const accessTokenValue = cookie?.accessToken?.value;
+      if(!accessTokenValue) {
         set.status = 401;
         return {
-          authorized: false
+          success: false,
+          message: "Silahkan signin terlebih dahulu",
+          error: [{
+            field: "accessToken",
+            message: "Unauthorized"
+          }],
+          source: "isPlayerMiddleware",
+          redirect: "/membership/signin"
         }
       }
-      const jwtPayload = await jwt.verify(bearer);
-      if (!jwtPayload) {
-        // handle if jwtPayload is not exist
-        set.status = 401;
-        return {
-          authorized: false
-        }
-      }
-
-      console.log('jwtPayload middleware', jwtPayload);
-
-      const playerId = Number(jwtPayload.sub);
-      // handle if playerId is not a valid number
-      if (isNaN(playerId)) {
-        set.status = 401;
-        return {
-          authorized: false
-        }
-      }
+      const jwtPayload = await jwt.verify(accessTokenValue);
+      const playerId = jwtPayload.sub.p_player_id;
       const player = await getPlayerById(playerId);
-      console.log('player', player);
       if (player === null || player === undefined) {
         set.status = 401;
         return {
-          authorized: false
+          success: false
         }
       }
       return {
-        authorized: true,
+        success: true,
         player
       };
     })

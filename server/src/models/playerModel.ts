@@ -36,26 +36,23 @@ export const playerSignupSchema = t.Object({
 })
 
 
-export const loginPlayer = async (username: string, password: string) => {
-  await db('login', [username, password]);
-}
-
-const getPlayerById = async (player_id: number) => {
+const getPlayerById = async (player_id: any) => {
   try{
-    const result = await db('getPlayerById',[player_id]);
+    const [result] = await db('get_player_by_id',[player_id]);
     if(!result) {
       throw new Error('Player by Id {player_id} not found');
     }
   
-  return result; // Mengembalikan hasil
+  return result;
   } catch (error) {
     console.error(`Error in getPlayerById: ${(error as Error).message}`);
     throw error;
   }
 }
 
-const getAdminById = async (player_id: number) => {
-  await db('getAdminById',[player_id]);
+const getAdminById = async (player_id: number, role: any) => {
+  const result = await db('get_admin_by_id',[player_id, role]);
+  return result;
 }
 
 

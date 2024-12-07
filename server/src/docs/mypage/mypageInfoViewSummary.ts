@@ -1,8 +1,8 @@
 import { t } from "elysia";
-export const mypageInfoViewSummary= {
+export const mypageInfoViewSummary = {
     detail: {
-        summary: "mypageInfoSummary",
-        description: "mypageInfoSummary a player.",
+        summary: "mypage info view",
+        description: "mypage info view a player.",
         tags: ["Mypage"],
      
         responses: {
@@ -15,13 +15,9 @@ export const mypageInfoViewSummary= {
                     }),
                     message: t.String({
                         description: "Message indicating the result of the request.",
-                        example: "Player registered successfully."
+                        example: "Menampilkan informasi mypage berhasil."
                     }),
                     data: t.Object({
-                        player_id: t.String({
-                            description: "id player",
-                            example: "1"
-                        }),
                         username: t.String({
                             description: "Username player",
                             example: "zaky"
@@ -35,14 +31,6 @@ export const mypageInfoViewSummary= {
                             example: "admin123"
                         }),
                     }),
-                    accesToken: t.String({
-                        description: "JWT token for the user.",
-                        example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
-                    }),
-                    timestamp: t.String({
-                        description: "timestamp",
-                        example: "2022-01-01 00:00:00"
-                    }),          
                 })
             },
             400: {
@@ -54,22 +42,12 @@ export const mypageInfoViewSummary= {
                     }),
                     message: t.String({
                         description: "Message indicating the result of the request.",
-                        example: "Invalid request."
+                        example: "Error during mypage info view."
                     }),
-                    errors: t.Array(t.Object({
-                        field: t.String({
-                            description: "Field name.",
-                            example: "username"
-                        }),
-                        message: t.String({
-                            description: "Error message.",
-                            example: "Invalid username."
-                        }),
-                    }), {
-                        description: "Array of errors."
-                    })
-                }, {
-                    required: ["success", "message", "errors"]
+                    error: t.String({
+                        description: "Error message.",
+                        example: "Invalid Request."
+                    }),
                 })
             },
             401: {

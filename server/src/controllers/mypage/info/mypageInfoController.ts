@@ -1,21 +1,12 @@
-const mypageInfoController = async ({ jwt, db, body, cookie: { accessToken }, set }: { db: any, jwt: any, body: any, cookie: any, set: any }) => {
+import { getExpTimestamp } from '@/utils/getExpTimestamp'
+import { 
+  ACCESS_TOKEN_EXP
+} from "@/config/jwt"
+const mypageInfoController = async ({ jwt, db, body, cookie: { accessToken, accessMypageToken }, set }: { db: any, jwt: any, body: any, cookie: any, set: any }) => {
   try {
     const accessTokenValue = accessToken.value;
-    if (!accessTokenValue){
-      set.status = 401;
-      return {
-        success: false,
-        message: "Silahkan signin terlebih dahulu",
-        error: [{
-          field: "accessToken",
-          message: "Unauthorized"
-        }]
-      }
-    }
-    console.log("Access Token:", accessTokenValue);
     const jwtPayload = await jwt.verify(accessTokenValue);
     const id = jwtPayload.sub.p_player_id;
-    console.log("ID:", id);
     const { password } = body;
     if (!password) {
       set.status = 400;
@@ -56,13 +47,31 @@ const mypageInfoController = async ({ jwt, db, body, cookie: { accessToken }, se
       };
     };
 
+    const payload = result;
+    console.log("Payload:", payload);
+    const exp = getExpTimestamp(ACCESS_TOKEN_EXP);
+    const accessMypageJWTToken = await jwt.sign({
+      sub: payload,
+      exp: exp,
+      httpOnly: true,
+      maxAge: ACCESS_TOKEN_EXP,
+      path: "/"
+    })
+    accessMypageToken.set({
+      value: accessMypageJWTToken,
+      httpOnly: true,
+      maxAge: ACCESS_TOKEN_EXP,
+      path: "/"
+    })
+
     set.status = 200;
     // set.redirect = "/mypage/info/view";
     return {
       success: true,
       message: "Password valid",
       data: result,
-      redirect: "/mypage/info/view"
+      accessMyPageToken: accessMypageJWTToken,
+      // redirect: "/mypage/info/view"
     }
   } catch (error) {
     set.status = 400;

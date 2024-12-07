@@ -1,21 +1,9 @@
-const signoutController = async ({jwt, set, db, cookie, cookie: { accessToken, refreshToken }}: { jwt: any, set: any, db: any, cookie: any }) => {
+const signoutController = async ({jwt, set, db, cookie, cookie: { accessToken, refreshToken, accessMypageToken }}: { jwt: any, set: any, db: any, cookie: any }) => {
   try {
     const accessTokenValue = accessToken.value;
-    if(!accessTokenValue) {
-      set.status = 401;
-      return {
-        success: false,
-        message: "Silahkan signin terlebih dahulu",
-        error: [{
-          field: "accessToken",
-          message: "Unauthorized"
-        }]
-      }
-    }
-    const jwtPayload = await jwt.verify(accessTokenValue);
-    const id = jwtPayload.sub.p_player_id;
     const refreshTokenValue = refreshToken.value;
-    if (!accessTokenValue && !refreshTokenValue) {
+    const accessMypageTokenValue = accessMypageToken.value;
+    if (!accessTokenValue && !refreshTokenValue && ! accessMypageTokenValue) {
       set.status = 400;
       return {
         success: false,
@@ -26,12 +14,22 @@ const signoutController = async ({jwt, set, db, cookie, cookie: { accessToken, r
         }]
       };
     } 
+    const jwtPayload = await jwt.verify(accessTokenValue);
+    const player_id = jwtPayload.sub.p_player_id;
+    console.log("Payload:", jwtPayload);
+    console.log("Player ID:", player_id);
+    const [result] = await db('signout', [player_id]);
+    console.log("Result:", result);
     accessToken.remove();
     refreshToken.remove();
+    accessMypageToken.remove();
     delete cookie.accessToken;
     delete cookie.refreshToken;
-    const [result] = await db('signout', [id]);
+    delete cookie.accessMypageToken;
 
+    console.log("accessToken:", accessTokenValue);
+    console.log("refreshToken:", refreshTokenValue);
+    console.log("accessMypageToken:", accessMypageTokenValue);
     set.status = 200;
     return {
       success: true,

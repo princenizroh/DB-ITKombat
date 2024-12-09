@@ -1,6 +1,7 @@
 import { Elysia } from 'elysia';
 import { getStoreSalesByIdRouter } from './view/getStoreSalesByIdRouter';
 import { buyStoreSalesByIdRouter} from './view/buyStoreSalesByIdRouter';
+import { adminStoreItemRouter } from './admin/adminStoreItemRouter';
 import { getStoreByTypesRouter } from './getStoreByTypesRouter';
 
 const storeTypesRouter = new Elysia()
@@ -11,11 +12,18 @@ const storeTypesRouter = new Elysia()
   return group;
 });
 
-const purchaseTypesStoreRouter = new Elysia() 
+const purchaseStoreTypesRouter = new Elysia() 
   .group('/types', (group) => {
     group
       .use(buyStoreSalesByIdRouter)
     return group;
   });
 
-export { storeTypesRouter, purchaseTypesStoreRouter }
+const adminStoreTypesRouter = new Elysia()
+  .group('/types', (group) => {
+  group
+    .use(adminStoreItemRouter) 
+  return group;
+})
+
+export { storeTypesRouter, purchaseStoreTypesRouter, adminStoreTypesRouter }

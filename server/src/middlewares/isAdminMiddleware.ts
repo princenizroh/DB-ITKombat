@@ -13,6 +13,19 @@ const isAdminMiddleware = (app: Elysia) => {
     )
     .derive(async ({jwt, set, cookie }:{ jwt: any, set: any, cookie: any }) => {
       const accessTokenValue = cookie?.accessToken?.value;
+      if(!accessTokenValue) {
+        set.status = 401;
+        return {
+          success: false,
+          message: "Silahkan signin terlebih dahulu",
+          error: [{
+            field: "accessToken",
+            message: "Unauthorized"
+          }],
+          source: "isAdminMiddleware",
+          redirect: "/membership/signin"
+        }
+      }
       const jwtPayload = await jwt.verify(accessTokenValue);
       console.log("Payload:", jwtPayload);
       const playerId = Number(jwtPayload.sub.p_player_id);

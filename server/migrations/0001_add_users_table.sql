@@ -2,10 +2,56 @@ create database itkombat;
 
 create user client_user with password 'user123';
 
+
+set role client_user;
+
+set role prince;
+
 grant usage on schema public to client_user;
 grant execute on all functions in schema public to client_user;
 grant execute on all procedures in schema public to client_user;
-alter default privileges in schema public grant execute on functions to client_user;
+
+grant all privileges on all tables in schema public to client_user;
+grant usage, select on all sequences in schema public to client_user;
+
+revoke all on all tables in schema public from client_user;
+revoke all on all sequences in schema public from client_user;
+
+select * from activity_history ah ;
+DO $$
+DECLARE
+    table_name text;
+    sequence_name text;
+BEGIN
+    FOR table_name IN
+        SELECT 'player'
+		union all 
+		select 'activity_history'
+    LOOP
+        -- Grant akses pada tabel
+        EXECUTE format('GRANT SELECT, INSERT ON %I TO client_user;', table_name);
+
+		IF table_name = 'player' THEN
+            sequence_name := 'player_player_id_seq';
+        ELSIF table_name = 'activity_history' THEN
+            sequence_name := 'activity_history_activity_history_id_seq';
+        ELSE
+            RAISE NOTICE 'No sequence configured for table %', table_name;
+            CONTINUE; -- Lewati tabel tanpa sequence
+        END IF;
+
+        -- Grant akses pada sequence
+        EXECUTE format('GRANT USAGE, SELECT ON SEQUENCE %s TO client_user;', sequence_name);
+    END LOOP;
+END
+$$;
+
+
+SELECT relname AS sequence_name
+FROM pg_class
+WHERE relkind = 'S' AND relnamespace = 'public'::regnamespace;
+
+
 
 select grantee, privilege_type, specific_name
 from information_schema.role_routine_grants
@@ -20,12 +66,9 @@ grant select
 on player 
 to client_user;
 
-set role client_user;
-
-set role prince;
 
 
-show tables;
+
 
 -----================================================================================= CREATE TABLE =================================================================================-----
 create table player (
@@ -56,7 +99,7 @@ create table balances (
 
 create table transaction_logs (
     log_id serial primary key,
-    player_id int not null,
+    player_id int references player(player_id)  on delete cascade,
     transaction_date timestamp not null default now(),
     transaction_type varchar(50) not null check (transaction_type in ('Topup UKT', 'Purchase Danus', 'Store Purchase')),
     amount_before int not null,
@@ -91,24 +134,6 @@ create table payment_methods (
 	method_name varchar(50) not null
 )
 
-create table profile (
-    profile_id serial primary key,
-    player_exp int default 0,
-    player_level int default 1,
-    player_rank int default 1,
-    sk2pm int default 0,
-    player_id int references player(player_id)
-);
-
-create table leaderboards (
-    leaderboard_id serial primary key,
-    profile_id int references profile(profile_id)
-);
-
---create table stats (
---	stat_id serial primary key,
---	stat_name varchar(50) not null check (stat_name in ('Attack', 'Deffense', 'Intelligence'))
---);
 
 create table tiers(
 	tier_id serial primary key,
@@ -144,8 +169,8 @@ create table character_class(
 create table characters (
     character_id serial primary key,
     character_name varchar(255),
-    character_class int references character_class(class_id),
-    character_tier int references tiers(tier_id),
+    character_class int references character_class(class_id)  on delete cascade,
+    character_tier int references tiers(tier_id)  on delete cascade,
     base_attack int default 0,
     base_defense int default 0,
     base_intelligence int default 0
@@ -153,8 +178,8 @@ create table characters (
 
 create table characters_inventory (
     character_inventory_id serial primary key,
-    player_id int references player(player_id),
-    character_id int references characters(character_id),
+    player_id int references player(player_id)  on delete cascade,
+    character_id int references characters(character_id)  on delete cascade,
     attack_value int default 0,
     defense_value int default 0,
     intelligence_value int default 0
@@ -196,15 +221,17 @@ create table npc (
 
 create table npc_sales(
 	sale_id serial primary key, 
-    npc_id int references npc(npc_id), 
-    item_id int default null references items(item_id), 
-    gear_id int default null references gears(gear_id),
-    character_id int default null references characters(character_id)
-)
+    npc_id int references npc(npc_id)  on delete cascade, 
+    item_id int default null references items(item_id)  on delete cascade, 
+    gear_id int default null references gears(gear_id)  on delete cascade,
+    character_id int default null references characters(character_id)  on delete cascade
+);
+
+
 
 create table store (
     store_id serial primary key,
-    sale_id int references npc_sales(sale_id),
+    sale_id int references npc_sales(sale_id)  on delete cascade,
     value_price int not null,
     currency varchar(50) not null check (currency in ('ukt', 'danus'))
 );
@@ -217,57 +244,59 @@ create table store_history (
 	item_type varchar(50) not null check (item_type in ('Gear', 'Item', 'Character'))
 )
 
-create table battle_mode (
-    battle_mode_id serial primary key, 
-    battle_name_mode varchar(255) not null,
-    number_players int not null
+create table profile (
+    profile_id serial primary key,
+    player_exp int default 0,
+    player_level int default 1,
+    player_rank int default 1,
+    sk2pm int default 0,
+    player_id int references player(player_id)
 );
 
-
-create table matches (
-    match_id serial primary key, 
-    match_date timestamp not null, 
-    max_skor_match int not null, 
-    duration_match int not null, 
-    battle_mode_id int references battle_mode(battle_mode_id) 
-);
-
-create table player_match (
-    player_match_id serial primary key,
-    player_match_score int not null,
+create table match_logs (
+    match_log_id serial primary key,
     player_id int references player(player_id),
-    match_id int references matches(match_id)
+    opponent_id int references player(player_id),
+    is_ranked boolean not null,
+    rounds_won int not null,
+    total_rounds int not null,
+    total_hits_taken int not null,
+    player_hp int not null,
+    created_at timestamp default current_timestamp
 );
 
-create table rewards (
-    reward_id serial primary key, 
-    reward_danus int not null, 
-    reward_exp int not null, 
-    reward_sk2pm int not null, 
-    player_match_id int references player_match(player_match_id)
+create table match_history (
+    match_id serial primary key,
+    player_id int references player(player_id),
+    match_log_id int references match_logs(match_log_id),
+    new_sk2pm int,
+    danus_reward int,
+    performance_points int,
+    match_date timestamp default current_timestamp
 );
+
+create table level_exp (
+    level serial primary key,
+    exp_needed int default null
+);
+
+
 
 -----================================================================================= DROP TABLE =================================================================================-----
 drop table if exists player cascade;
 drop table if exists activity_history cascade;
 drop table if exists balances cascade;
-drop table if exists battle_mode cascade;
 drop table if exists payment_method cascade;
 drop table if exists transaction_logs cascade;
 drop table if exists purchase_logs cascade;
 drop table if exists ukt_packages cascade;
 drop table if exists danus_packages cascade;
-drop table if exists profile cascade;
-drop table if exists leaderboards cascade;
 drop table if exists stats cascade;
 drop table if exists item_type cascade;
 drop table if exists items cascade;
 drop table if exists character_class cascade;
 drop table if exists characters cascade;
 drop table if exists gears cascade;
-drop table if exists rewards cascade;
-drop table if exists player_match cascade;
-drop table if exists matches cascade;
 drop table if exists store_history cascade;
 drop table if exists store cascade;
 drop table if exists npc_sales cascade;
@@ -276,17 +305,22 @@ drop table if exists player_inventory cascade;
 drop table if exists gears_inventory cascade;
 drop table if exists items_inventory cascade;
 drop table if exists characters_inventory cascade;
+drop table if exists profile cascade;
+drop table if exists match_history cascade;
+drop table if exists match_logs cascade;
+drop table if exists leaderboards cascade;
+drop table if exists rewards cascade;
 --drop table if exists announcement cascade;
 
 
 -----================================================================================= INSERT VALUES =================================================================================-----
 insert into player (username, email, password)
 values 
-('izaki', 'izaki@gmail.com', 'admin123'),
-('zaky', 'zaky@gmail.com', 'admin123'),
-('dio', 'dio@gmail.com', 'admin123'),
-('akbar', 'akbar@gmail.com', 'admin123'),
-('pangestu', 'pangestu@gmail.com', 'admin123')
+('izaki', 'izaki@gmail.com', 'admin123')
+--('zaky', 'zaky@gmail.com', 'admin123'),
+--('dio', 'dio@gmail.com', 'admin123'),
+--('akbar', 'akbar@gmail.com', 'admin123'),
+--('pangestu', 'pangestu@gmail.com', 'admin123')
 
 insert into player (username, password, email, role)
 values 
@@ -295,10 +329,10 @@ values
 
 insert into profile (profile_id, player_exp, player_level, player_rank, sk2pm, player_id)
 values
-(1, 1500, 2, 1, 200, 1),
-(2, 1000, 1, 2, 150, 2),
-(3, 800, 1, 3, 50, 3),
-(4, 700, 1, 4, 30, 4)
+(1, 1500, 2, 1, 1200, 1),
+(2, 1000, 1, 2, 1300, 2),
+(3, 800, 1, 3, 1200, 3),
+(4, 700, 1, 4, 1300, 4)
 
 insert into balances (balance_id, danus, ukt, player_id)
 values
@@ -492,10 +526,10 @@ values
 ('Gibran', 'Item seller'),
 ('Prabowo', 'Character seller');
 
-insert into battle_mode (battle_mode_id, battle_name_mode, number_players)
+insert into game_mode (battle_mode_id, battle_name_mode)
 values
-(1, 'rangked', 4),
-(2, 'Unrangked', 2);
+(1, 'rangked'),
+(2, 'Unrangked');
 
 insert into matches (match_id, match_date, max_skor_match, duration_match, battle_mode_id)
 values
@@ -550,6 +584,110 @@ values
 (15, 250, 250, 25, 15),
 (16, 50, 50, 5, 16);
 
+-- Insert kebutuhan EXP untuk setiap level
+insert into level_exp (exp_needed)
+values
+(0),                   
+(100),                 
+(150),                 
+(220),                 
+(300),                 
+(380),                
+(470),
+(570),
+(680),
+(800),                 
+(930),                 
+(1070),                 
+(1220),                
+(1380),
+(1550),
+(1730),
+(1920),
+(2120),
+(2330),
+(2550),
+(2780),
+(3020),
+(3270),
+(3530),
+(3800),
+(4080),
+(4370),
+(4670),
+(4980),
+(5300),
+(5630),
+(5970),
+(6320),
+(6680),
+(7050),
+(7430),
+(7820),
+(8220),
+(8630),
+(9050),
+(9480),
+(9920),
+(10370),
+(10830),
+(11300),
+(11780),
+(12270),
+(12770),
+(13280),
+(13800),
+(14330),
+(14870),
+(15420),
+(15980),
+(16550),
+(17130),
+(17720),
+(18320),
+(18930),
+(19550),
+(20180),
+(20820),
+(21470),
+(22130),
+(22800),
+(23480),
+(24170),
+(24870),
+(25580),
+(26300),
+(27030),
+(27770),
+(28520),
+(29280),
+(30050),
+(30830),
+(31620),
+(32420),
+(33230),
+(34050),
+(34880),
+(35720),
+(36570),
+(37430),
+(38300),
+(39180),
+(40070),
+(40970),
+(41880),
+(42800),
+(43730),
+(44670),
+(45620),
+(46580),
+(47550),
+(48530),
+(49520),
+(50520),
+(51530),
+(52550),
+(53580);
 -----================================================================================= DELETE VALUES =================================================================================-----
 TRUNCATE TABLE player cascade;
 TRUNCATE TABLE transaction_history cascade;
@@ -613,28 +751,7 @@ group by p.player_id, p.username, pr.player_exp, pr.player_level, pr.player_rank
 select * from player_stats_overview;
 
 -- gunakan ini dulu yang sudah diterapkan di usecase
-create or replace view show_player_inventory as
-select
-    pi.inventory_id,
-    pi.player_id,
-    pi.item_type,
-    case 
-        when pi.item_type = 'Item' then i.item_name
-        when pi.item_type = 'Gear' then g.gear_name
-        when pi.item_type = 'Character' then c.character_name
-        else 'unknown'
-    end as item_name,
-    pi.acquired_date
-from
-    player_inventory pi
-left join
-    items i on pi.item_type = 'Item' and pi.item_id = i.item_id
-left join
-    gears g on pi.item_type = 'Gear' and pi.item_id = g.gear_id
-left join
-    characters c on pi.item_type = 'Character' and pi.item_id = c.character_id;
 
-select * from show_player_inventory;
 
 ----
 create or replace view mypage_info as
@@ -663,7 +780,6 @@ order by
     p.player_id asc, time_activity desc;
 
 select * from player_activity;
-
 ---
 
 create or replace view player_balance as 
@@ -692,6 +808,10 @@ from
 
 select * from show_ukt_packages;
 ---
+
+select * from player;
+
+
 create or replace view show_danus_packages as
 select 
     package_id, 
@@ -809,10 +929,7 @@ select
     s.store_id,
 	n.npc_type as seller_type,
     coalesce(i.item_name, g.gear_name, c.character_name) as entity_name,
-    case
-	    when i.item_id is not null then 
-	end as entity_tier
-    coalesce(g.gear_tier, c.character_tier, i.item_tier) as entity_tier,
+    t.tier_name as entity_tier,
     case 
         when i.item_id is not null then it.type_name 
         when g.gear_id is not null then g.gear_type 
@@ -841,24 +958,52 @@ left join
 left join 
     characters c on ns.character_id = c.character_id
 left join 
-    character_class cc on c.character_class = cc.class_id;
+    character_class cc on c.character_class = cc.class_id
+left join
+    tiers t 
+on 
+	t.tier_id = coalesce (
+   		i.item_tier, g. gear_tier, c.character_tier
+    );
 
 select * from store_details;
+
+create or replace view show_player_inventory as
+select
+    pi.inventory_id,
+    pi.player_id,
+    pi.item_type,
+    case 
+        when pi.item_type = 'Item' then i.item_name
+        when pi.item_type = 'Gear' then g.gear_name
+        when pi.item_type = 'Character' then c.character_name
+        else 'unknown'
+    end as item_name,
+    pi.acquired_date
+from
+    player_inventory pi
+left join
+    items i on pi.item_type = 'Item' and pi.item_id = i.item_id
+left join
+    gears g on pi.item_type = 'Gear' and pi.item_id = g.gear_id
+left join
+    characters c on pi.item_type = 'Character' and pi.item_id = c.character_id;
+
+select * from show_player_inventory;
+
+drop view inventory_details
 
 create or replace view inventory_details as
 select 
     pi.inventory_id,
+    pi.player_id,
     pi.item_type,
     case 
         when pi.item_type = 'Character' then c.character_name
         when pi.item_type = 'Gear' then g.gear_name
         when pi.item_type = 'Item' then i.item_name
     end as entity_name,
-	case 
-        when pi.item_type = 'Character' then c.character_tier
-        when pi.item_type = 'Gear' then g.gear_tier
-        when pi.item_type = 'Item' then null
-    end as entity_tier,
+	t.tier_name as entity_tier,
     case 
         when pi.item_type = 'Character' then cc.class_name
         when pi.item_type = 'Gear' then g.gear_type
@@ -883,26 +1028,126 @@ left join
 left join 
 	items i on pi.item_id = i.item_id and pi.item_type = 'Item'
 left join 
-	item_type it on i.item_type = it.type_id;
+	item_type it on i.item_type = it.type_id
+left join
+    tiers t 
+on 
+	t.tier_id = coalesce (
+   		i.item_tier, g. gear_tier, c.character_tier
+    );
 
 select * from inventory_details;
 ----- 
-create or replace view player_match_scores as
+drop view player_profile;
+create or replace view player_profile as
 select 
-    m.match_id, 
-    p.player_id, 
-    p.username, 
-    m.match_date, 
-    m.max_skor_match, 
-    pm.player_match_score,
-    bm.battle_name_mode
-from player p
-join player_match pm on p.player_id = pm.player_id
-join matches m on pm.match_id = m.match_id
-join battle_mode bm on m.battle_mode_id = bm.battle_mode_id
-order by m.match_id, p.player_id asc;
+    p.player_id,
+    p.username,
+    pr.player_exp,
+    pr.player_level,
+    pr.player_rank,
+    pr.sk2pm,
+    count(ml.match_log_id) as total_matches,
+    sum(
+    	case 
+	    	when ml.rounds_won > (ml.total_rounds / 2) 
+    	then 1 else 0 end
+    ) as total_wins,
+    sum(
+    	case 
+	    	when ml.rounds_won <= (ml.total_rounds / 2) 
+    	then 1 else 0 end
+    ) as total_lose,
+    (sum(
+        case 
+            when ml.rounds_won > (ml.total_rounds / 2) 
+        then 1 else 0 end
+    )::float / count(ml.match_log_id)) * 100 as win_rate
+from 
+    player p
+left join 
+    profile pr on p.player_id = pr.player_id
+left join 
+    match_logs ml on p.player_id = ml.player_id
+group by 
+    p.player_id, pr.player_exp, pr.player_level, pr.sk2pm, pr.player_rank
+order by 
+	p.player_id asc;
+   
+select * from player_profile;
 
-select * from player_match_scores;
+drop view match_history_player;
+create or replace view match_history_player as
+select 
+    mh.match_id,
+    p1.username as player_name,
+    p2.username as opponent_name,
+    case 
+        when ml.is_ranked then 'ranked'
+        else 'unranked'
+    end as match_mode,
+    mh.new_sk2pm as sk2pm,
+    mh.match_date
+from 
+    match_history mh 
+left join 
+	match_logs ml on mh.match_id = ml.match_log_id
+left join 
+    player p1 on ml.player_id = p1.player_id
+left join 
+    player p2 on ml.opponent_id = p2.player_id
+order by 
+	mh.match_id asc;
+
+select * from match_history_player;
+
+drop view match_details;
+create or replace view match_details as
+select 
+    mh.match_id,
+    p1.username as player_name,
+    p2.username as opponent_name,
+        case 
+        when ml.is_ranked then 'ranked'
+        else 'unranked'
+    end as match_mode,
+    mh.performance_points,
+    (case 
+        when mh.performance_points >= 246 then 'Perfect'
+        when mh.performance_points >= 200 then 'Excellent'
+        when mh.performance_points >= 143 then 'Good'
+        else 'Nice Try'
+    end) as performance_rating,
+    mh.new_sk2pm as sk2pm,
+    mh.danus_reward,
+    ml.rounds_won,
+    ml.total_rounds,
+    ml.total_hits_taken,
+    mh.match_date
+from 
+    match_history mh
+left join 
+	match_logs ml on mh.match_id = ml.match_log_id
+left join 
+    player p1 on ml.player_id = p1.player_id
+left join 
+    player p2 on ml.opponent_id = p2.player_id
+
+select * from match_details;
+
+create or replace view leaderboards_rank as
+select 
+    row_number() over (order by pr.sk2pm desc) as rank,
+    p.username,
+    pr.sk2pm,
+    pr.player_level
+from 
+    profile pr
+join 
+    player p on pr.player_id = p.player_id;
+   
+
+select * from leaderboards_rank;
 -----================================================================================= DROP QUERRY=================================================================================-----
 
 drop view if exists player_total_rewards;
@@ -959,7 +1204,7 @@ returns table (
 	username varchar,
 	email varchar,
 	password varchar
-) as $$ 
+) as $$
 begin 
 	return query
 	select * from mypage_info;
@@ -1013,7 +1258,7 @@ returns table (
 	store_id int,
 	seller_type varchar,
 	entity_name varchar,
-	entity_tier int,
+	entity_tier varchar,
 	entity_type varchar,
 	base_attack int,
 	base_defense int,
@@ -1116,7 +1361,7 @@ security definer;
 
 select * from get_purchase_logs();
 
-select log_id, payment_method, ukt_purchased, amount_paid, purchase_date from get_purchase_logs() where player_id = 3;
+select log_id, payment_method, ukt_purchased, amount_paid, purchase_date from get_purchase_logs() where player_id = 1;
 
 drop function get_transaction_history;
 
@@ -1156,27 +1401,44 @@ $$ language plpgsql
 security definer;
 
 select * from get_player_inventory();
+drop function get_inventory_details;
 
----======---- trash -----======------
-alter table characters
-drop column stat_att,
-drop column stat_def,
-drop column stat_int;
+create or replace function get_inventory_details()
+returns table (
+	inventory_id int,
+	player_id int,
+	item_type varchar(50),
+	entity_name varchar(50),
+	entity_tier varchar(50),
+	entity_type varchar(50),
+	base_attack int,
+	base_defense int,
+	base_intelligence int,
+	item_value int
+) as $$
+begin
+	return query
+	select * from inventory_details;
+end;
+$$ language plpgsql
+security definer;
 
+select * from get_inventory_details();
 
 -----================================================================================= Debug function exists=================================================================================-----
 
 select n.nspname, p.proname, pg_catalog.pg_get_functiondef(p.oid)
 from pg_catalog.pg_proc p
 left join pg_catalog.pg_namespace n on n.oid = p.pronamespace
-where p.proname = 'add_to_inventory';
+where p.proname = 'calculate_rewards';
 -----================================================================================= Debug procedure exists=================================================================================-----
 select proname, oid, pronargs, proargtypes::regtype[] 
 from pg_proc 
-where proname = 'purchase_store';
+where proname = 'update_player_rank';
 
-drop procedure register;
 
+
+drop procedure signin(character varying,character varying, integer, character varying, character varying);
 drop procedure logout(integer);
 drop procedure logout(character varying);
 drop procedure login(character varying, character varying);
@@ -1243,7 +1505,7 @@ before insert on player
 for each row 
 execute function check_username();
 
------================================================================================= Initial Balance  =================================================================================-----
+-----================================================================================= Initial Balance =================================================================================-----
 create or replace function set_initial_balance()
 returns trigger
 as $$
@@ -1260,46 +1522,218 @@ after insert on player
 for each row 
 execute function set_initial_balance();
 
+-----================================================================================= Initial Profile =================================================================================-----
 
------================================================================================= Append to Inventory  =================================================================================-----
+create or replace function set_initial_profile()
+returns trigger as $$
+begin
+    insert into profile (player_id, player_exp, player_level, sk2pm, player_rank)
+    values (
+        new.player_id,  
+        0,              
+        1,              
+        0,              
+        null               
+    );
 
-create or replace function add_to_inventory()
+	perform update_player_rank();
+
+    return new;
+end;
+$$ language plpgsql;
+
+create or replace trigger trg_set_initial_profile
+after insert on player
+for each row
+execute function set_initial_profile();
+
+drop procedure update_player_rank cascade;
+
+create or replace function update_player_rank()
+returns void
+language plpgsql
+as $$
+begin
+    with ranked_players as (
+        select player_id, 
+               row_number() over (order by sk2pm desc, player_id asc) as rank
+        from profile
+    )
+    update profile
+    set player_rank = ranked_players.rank
+    from ranked_players
+    where profile.player_id = ranked_players.player_id;
+end;
+$$;
+
+-----================================================================================= Update Balance After Match =================================================================================-----
+create or replace function update_match_danus()
+returns trigger as $$
+begin
+    update balances
+    set danus = danus + new.danus_reward
+    where player_id = new.player_id;
+
+    return new;
+end;
+$$ language plpgsql;
+
+create or replace trigger trg_update_match_danus
+after insert on match_history
+for each row
+execute function update_match_danus();
+
+-----================================================================================= Calculate Rewards Player  =================================================================================-----
+create or replace function calculate_rewards()
 returns trigger 
 as $$
 declare
-    v_character_id int; 
-    v_gear_id int;
-    v_item_id int;
+    k constant int := 30;            -- sensitivitas perubahan sk2pm
+    e float;                         -- ekspektasi
+    s float;                         -- skor per ronde
+    sadjust float;                   -- skor per ronde yang disesuaikan
+    s_performance_factor float;      -- performance factor yang disesuaikan
+    basic_points int := 246;         -- maksimal poin performa
+    hp_penalty int := 0;             -- penalti darah
+    hit_penalty int := 0;            -- penalti hit
+    round_penalty int := 0;          -- penalti untuk ronde tambahan
+	bonus_round int := 0;			 -- bonus ronde tambahan
+    performance_points int;          -- poin performa total
+    new_sk2pm int;                   -- sk2pm baru
+    danus_reward int;                -- reward danus
+    opponent_sk2pm int;              -- sk2pm lawan
+	player_hp int := 100; 			 -- player hp 
+	player_rounds_won int;			 -- menang ronde player
 begin
-    select ns.character_id, ns.gear_id, ns.item_id
-    into v_character_id, v_gear_id, v_item_id
-    from npc_sales ns
-    join store s on s.sale_id = ns.sale_id
-    where s.store_id = new.store_id;
+    -- ambil sk2pm lawan
+    select sk2pm into opponent_sk2pm from profile where player_id = new.opponent_id;
 
-    if new.item_type = 'Character' then
-        insert into characters_inventory (player_id, character_id)
-        values (new.player_id, v_character_id);
-        insert into player_inventory (player_id, item_type, item_id, acquired_date)
-        values (new.player_id, 'Character', v_character_id, now());
-    elsif new.item_type = 'Gear' then
-        insert into gears_inventory (player_id, gear_id)
-        values (new.player_id, v_gear_id);
-        insert into player_inventory (player_id, item_type, item_id, acquired_date)
-        values (new.player_id, 'Gear', v_gear_id, now());
-    elsif new.item_type = 'Item' then
-        insert into items_inventory (player_id, item_id)
-        values (new.player_id, v_item_id);
-        insert into player_inventory (player_id, item_type, item_id, acquired_date)
-        values (new.player_id, 'Item', v_item_id, now());
+    player_rounds_won := new.rounds_won;
+    -- penalti ronde tambahan
+    if new.total_rounds = 4 then
+        round_penalty := 20;
+		bonus_round := 70;
+		round_penalty := bonus_round - round_penalty;
+    elsif new.total_rounds = 5 then
+        round_penalty := 40;
+		bonus_round := 140;
+		round_penalty := bonus_round - round_penalty;
+    end if;
+
+	if player_rounds_won = 0 then
+		round_penalty := 210;
+	elsif player_rounds_won = 1 then
+		round_penalty := 140;
+	elsif player_rounds_won = 2 then
+		round_penalty := 70;
+	end if;
+
+    -- penalti darah
+    if player_hp < 80 then
+        hp_penalty := 40;
+    elsif player_hp < 50 then
+        hp_penalty := 20;
+    elsif player_hp < 20 then
+        hp_penalty := 8;
+    end if;
+
+    -- penalti berdasarkan hit
+    hit_penalty := least(new.total_hits_taken * 3, 3);
+
+    -- hitung poin performa setelah penalti
+    performance_points := basic_points - round_penalty - hp_penalty - hit_penalty;
+
+    -- hitung ekspektasi
+    e := 1 / (1 + power(10, (opponent_sk2pm - (select sk2pm from profile where player_id = new.player_id)) / 400.0));
+
+    -- hitung skor s
+    s := new.rounds_won::float / new.total_rounds::float;
+
+    -- hitung performance factor
+    s_performance_factor := greatest(0, performance_points / 246.0);
+
+    -- hitung sadjust
+    sadjust := s + s_performance_factor;
+    if sadjust > 1 then
+        sadjust := 1;
+    end if;
+
+    -- hitung sk2pm baru
+    if new.is_ranked then
+        new_sk2pm := (select sk2pm from profile where player_id = new.player_id) + k * (sadjust - e);
+
+		if new_sk2pm < 0 then
+            new_sk2pm := 0;
+        end if;
+        -- update sk2pm di tabel profile
+        update profile
+        set sk2pm = new_sk2pm
+        where player_id = new.player_id;
+
+		perform update_player_rank();
+    end if;
+
+    -- hitung reward danus
+    if new.is_ranked then
+        danus_reward := ceil(1.2 * performance_points);
+    else
+        danus_reward := ceil(0.5 * performance_points);
+    end if;
+
+
+    -- masukkan ke tabel `match_history`
+    insert into match_history (
+        player_id, match_log_id, new_sk2pm, danus_reward, performance_points, match_date
+    )
+    values (
+        new.player_id, new.match_log_id, new_sk2pm, danus_reward, performance_points, current_timestamp
+    );
+	return new;
+end;
+$$ language plpgsql;
+
+create or replace trigger trg_calculate_rewards
+after insert on match_logs
+for each row
+execute function calculate_rewards();
+
+-----================================================================================= Calculate Exp dan Level  =================================================================================-----
+create or replace function calculate_exp()
+returns trigger as $$
+declare
+    current_exp int;
+    new_level int;
+begin
+    -- ambil exp saat ini dari profile
+    select player_exp into current_exp from profile where player_id = new.player_id;
+
+ 
+    current_exp := current_exp + 50 + (new.performance_points * 0.1);
+
+    update profile
+    set player_exp = current_exp
+    where player_id = new.player_id;
+
+    select max(level) into new_level
+    from level_exp
+    where exp_needed <= current_exp;
+
+    if new_level > (select player_level from profile where player_id = new.player_id) then
+        update profile
+        set player_level = new_level
+        where player_id = new.player_id;
     end if;
 
     return new;
 end;
-$$ language plpgsql 
-security definer;
+$$ language plpgsql;
 
-drop function add_to_inventory;
+create or replace trigger trg_update_exp
+after insert on match_history
+for each row
+execute function calculate_exp();
+
+-----================================================================================= Append to Inventory  =================================================================================-----
 
 create or replace function add_to_inventory()
 returns trigger 
@@ -1320,7 +1754,6 @@ begin
     join store s on s.sale_id = ns.sale_id
     where s.store_id = new.store_id;
 
-    -- Jika item adalah karakter
     if new.item_type = 'Character' then
         select base_attack, base_defense, base_intelligence
         into v_attack_value, v_defense_value, v_intelligence_value
@@ -1333,7 +1766,6 @@ begin
         insert into player_inventory (player_id, item_type, item_id, acquired_date)
         values (new.player_id, 'Character', v_character_id, now());
 
-    -- Jika item adalah gear
     elsif new.item_type = 'Gear' then
         select base_attack, base_defense, base_intelligence
         into v_attack_value, v_defense_value, v_intelligence_value
@@ -1346,7 +1778,6 @@ begin
         insert into player_inventory (player_id, item_type, item_id, acquired_date)
         values (new.player_id, 'Gear', v_gear_id, now());
 
-    -- Jika item adalah item biasa
     elsif new.item_type = 'Item' then
         select item_base_value
         into v_item_value
@@ -1365,40 +1796,51 @@ end;
 $$ language plpgsql 
 security definer;
 
-
-
 create or replace trigger trigger_add_to_inventory
 after insert on store_history
 for each row
 execute function add_to_inventory();
 
+-----======================= STORED PROCEDURE =======================-----
 -----================================================================================= Signin =================================================================================-----
 create or replace procedure signin(
-	inout p_username varchar,
-	inout p_password varchar,
-	inout p_player_id int default null,
-	inout p_role varchar default 'player',
-	inout p_type_activity varchar default 'signin'
+  inout p_username varchar,
+  inout p_password varchar,
+  inout p_role varchar default 'player',
+  inout p_player_id int default null,
+  inout p_type_activity varchar default 'signin'
 )
-language plpgsql security definer
 as $$
 begin
-		select player_id into p_player_id 
-		from player 
-		where username = p_username and password = p_password and role = p_role;
-	
-		if not found then
-			raise exception 'username dan password salah';
-		end if;
-	
-		--masukan ke dalam acitivity_history
-		insert into activity_history(player_id, type_activity)
-		values (p_player_id, p_type_activity);
-	
-		raise notice 'sign berhasil: %', p_username;
-exception
-    when others then
-        raise;
+	p_player_id := validate_player_credentials(p_username, p_password, p_role);
+	  
+	if p_player_id is null then
+		rollback;
+		raise exception 'username dan password salah';
+	end if;
+	  
+	perform insert_activity_history(p_player_id, p_type_activity);
+	commit;
+	raise notice 'signin berhasil: %', p_username;
+end;
+$$;
+
+create or replace function validate_player_credentials(p_username varchar, p_password varchar, p_role varchar)
+returns int
+language plpgsql security definer
+as $$
+declare
+	v_player_id int;
+begin
+	select player_id into v_player_id
+	from player
+	where username = p_username and password = p_password and role = p_role;
+	  
+	if not found then
+		return null;
+	end if;
+	  
+	return v_player_id;
 end;
 $$;
 
@@ -1419,27 +1861,57 @@ create or replace procedure signup(
 	inout p_role varchar default 'player',
 	inout p_type_activity varchar default 'signup'
 )
-language plpgsql security definer
+language plpgsql 
 as $$
 declare 
 	v_player_id int;
 begin
-	if exists (select 1 from player where username = p_username or email = p_email) then
+	if is_username_or_email_taken(p_username, p_email) then
+		rollback;
 		raise exception 'Username atau email sudah terpakai';
 	end if;
 
+  	v_player_id := insert_player(p_username, p_email, p_password, p_role);
+	perform insert_activity_history(v_player_id, p_type_activity);
+
+	commit;
+	raise notice 'Signup berhasil: %', p_username;
+end;
+$$;
+
+create or replace function is_username_or_email_taken(p_username varchar, p_email varchar)
+returns boolean
+language plpgsql
+security definer
+as $$
+begin
+	return exists (select 1 from player where username = p_username or email = p_email);
+end;
+$$;
+
+create or replace function insert_player(p_username varchar, p_email varchar, p_password varchar, p_role varchar)
+returns int
+language plpgsql
+security definer
+as $$
+declare
+  v_player_id int;
+begin
 	insert into player (username, email, password, role)
 	values (p_username, p_email, p_password, p_role)
 	returning player_id into v_player_id;
+	return v_player_id;
+end;
+$$;
 
+create or replace function insert_activity_history(p_player_id int, p_type_activity varchar)
+returns void
+language plpgsql 
+security definer
+as $$
+begin
 	insert into activity_history(player_id, type_activity)
-	values (v_player_id, p_type_activity);
-	
-	
-	raise notice 'Signup berhasil: %', p_username;
-exception
-    when others then
-		raise;
+	values (p_player_id, p_type_activity);
 end;
 $$;
 
@@ -1447,39 +1919,42 @@ $$;
 call signup('ryuzaki', 'ryuzaki@gamil.com', 'admin123');
 call signup('zaky', 'zaky@gmail.com', 'admin123');
 call signup('dio', 'dio@gmail.com', 'admin123');
+call signup('akbar', 'akbar@gmail.com', 'admin123');
 call signup('admin', 'admin@gmail.com', 'admin123', 'admin');
 call signup('developer', 'developer@gmail.com', 'admin123', 'admin');
 
 
 -----================================================================================= Signout =================================================================================-----
+drop procedure signout;
+
 create or replace procedure signout(
 	inout p_player_id int,
 	inout p_type_activity varchar default 'signout'
 )
-language plpgsql security definer
+language plpgsql
 as $$
-declare
-	v_player_id int;
 begin
-	-- transaction
-	begin
-		select player_id into v_player_id 
-		from player
-		where player_id = p_player_id;
+	if not is_player_exists(p_player_id) then
+		rollback;
+		raise exception 'user tidak ditemukan: %', p_player_id;
+	end if;
 	
-		if not found then
-			rollback;
-			raise exception 'user tidak ditemukan: %', p_player_id;
-		end if;
-		
-		insert into activity_history(player_id, type_activity)
-		values (v_player_id, p_type_activity);
-		commit;
-		
-		raise notice 'Signout berhasil: %', p_player_id;
-	end;
+	perform insert_activity_history(p_player_id, p_type_activity);
+	commit;
+	
+	raise notice 'Signout berhasil: %', p_player_id;
 end;
 $$
+
+create or replace function is_player_exists(p_player_id int)
+returns boolean
+language plpgsql
+security definer
+as $$
+begin
+	return exists (select 1 from player where player_id = p_player_id);
+end;
+$$;
 
 call signout(1);
 
@@ -1489,95 +1964,88 @@ call signout('zaki');
 call signout('admin');
 
 -----================================================================================= getBy... =================================================================================-----
-create or replace procedure getPlayerById(
+create or replace procedure get_player_by_id(
   inout p_player_id int
 )
-language plpgsql security definer
+language plpgsql
 as $$
-declare
-  v_player_id int;
 begin
-  -- transaction
-  begin
-    select player_id into v_player_id
-    from player
-    where player_id = p_player_id;
-
-    if not found then
-      rollback;
-      raise exception 'id player tidak ditemukan: %', p_player_id;
-    end if;
+	if not is_player_exists(p_player_id) then
+		rollback;
+		raise exception 'user tidak ditemukan: %', p_player_id;
+	end if;
 	commit;
 	raise notice 'Menemukan id player: %', p_player_id;
-  end;
 end;
 $$;
 
-call getPlayerById(1)
+call getPlayerById(1);
 
-create or replace procedure getAdminById(
-	inout p_player_id int
+drop procedure getAdminById;
+
+create or replace procedure get_admin_by_id(
+	inout p_player_id int,
+	inout p_role varchar
 )
-language plpgsql security definer
+language plpgsql 
 as $$
-declare
-  	v_player_id int;
 begin
-  	-- transaction
-  	begin
-    	select player_id into v_player_id
-    	from player
-    	where player_id = p_player_id and role = 'admin';
-
-	    if not found then
-	    	rollback;
-	    	raise exception 'id player dengan role admin tidak ditemukan: %', p_player_id;
-	    end if;
-
-		commit;
-		raise notice 'Menemukan id player: %', p_player_id;
-  	end;
+    if not is_admin_exists(p_player_id, p_role) then
+        raise exception 'id player dengan role admin tidak ditemukan: % dan %', p_player_id, p_role;
+    end if;
+  
+    raise notice 'Menemukan id player: %', p_player_id;
 end;
 $$;
 
-call getAdminById(1)
+call getAdminById(2);
+
+drop function is_admin_exists;
+create or replace function is_admin_exists(p_player_id int, p_role varchar)
+returns boolean
+language plpgsql
+security definer
+as $$
+begin
+    return exists (select 1 from player where player_id = p_player_id and role = p_role);
+end;
+$$;
 
 
-
------======================= STORED PROCEDURE =======================-----
 -----================================================================================= Validate =================================================================================-----
 
 create or replace procedure validate_password(
-	inout p_password varchar,
-	inout p_player_id int
+  inout p_password varchar,
+  inout p_player_id int
 )
-language plpgsql security definer
+language plpgsql 
 as $$
 declare
 	v_player_id int;
 begin
-	begin
-		select player_id into v_player_id
-		from player
-		where password = p_password  and player_id = p_player_id ;
+	if not is_password_valid(p_password, p_player_id) then
+		rollback;
+		raise exception 'password invalid: %', p_password;
+	end if;
+	  
+	p_player_id := p_player_id;
+	commit;
+	raise notice 'password valid: %', p_password;
+end;
+$$;
 
-		if not found then
-			rollback;
-			raise exception 'password invalid: %', p_password;
-		end if;
-		
-		
-		p_player_id := v_player_id;
-		
-		commit;
-		raise notice 'password valid: %', p_password;
-	end;
+create or replace function is_password_valid(p_password varchar, p_player_id int)
+returns boolean
+language plpgsql 
+security definer
+as $$
+begin
+	return exists (select 1 from player where password = p_password and player_id = p_player_id);
 end;
 $$;
 
 call validate_password('admin123', 1);
 -----================================================================================= Tansaction Top Up =================================================================================-----
-drop procedure add_ukt_purchase;
 
 create or replace procedure add_ukt_purchase(
 	inout p_player_id int,
@@ -1585,7 +2053,7 @@ create or replace procedure add_ukt_purchase(
 	inout p_payment_method varchar,
 	inout p_payment_amount int
 )
-language plpgsql security definer
+language plpgsql 
 as $$
 declare
 	v_package_price int;
@@ -1712,7 +2180,7 @@ $$
 
 call add_danus_purchase(3, 1);
 
------================================================================================= Purchase at store =================================================================================-----
+-----================================================================================= purchase at store =================================================================================-----
 
 
 create or replace procedure purchase_store(
@@ -1792,326 +2260,810 @@ $$;
 
 call purchase_store(1,6);
 
+-----================================================================================= CRUD dynamic add items =================================================================================-----
+create or replace procedure sp_dynamic_insert(
+    in p_table_name text,             
+    in p_columns text[],              
+    in p_values text[]                 
+)
+language plpgsql
+as $$
+declare
+    query text;                       
+begin
+    if array_length(p_columns, 1) <> array_length(p_values, 1) then
+        raise exception 'Jumlah kolom dan nilai tidak cocok.';
+    end if;
+
+    query := format(
+        'insert into %I (%s) values (%s)',
+        p_table_name,                                      
+        array_to_string(p_columns, ','),                  
+        array_to_string(
+            array(
+                select quote_literal(v) from unnest(p_values) as v 
+            ),
+            ','
+        )
+    );
+
+    raise notice 'Query yang akan dieksekusi: %', query;
+
+    execute query;
+end;
+$$;
 
 
------================================================================================= Battle Mode =================================================================================-----
+call sp_dynamic_insert(
+    'characters',
+    array['character_name', 'character_class', 'character_tier', 'base_attack', 'base_defense', 'base_intelligence'],
+    array['Riska', '2', '3', '44', '19', '51']
+);
+call sp_dynamic_insert(
+    'characters',
+    array['character_name', 'character_class', 'character_tier', 'base_attack', 'base_defense', 'base_intelligence'],
+    array['Nisa', '4', '3', '42', '19', '56']
+);
+call sp_dynamic_insert(
+    'characters',
+    array['character_name', 'character_class', 'character_tier', 'base_attack', 'base_defense', 'base_intelligence'],
+    array['Cahyo', '2', '3', '43', '23', '53']
+);
+call sp_dynamic_insert(
+    'characters',
+    array['character_name', 'character_class', 'character_tier', 'base_attack', 'base_defense', 'base_intelligence'],
+    array['bima', '2', '3', '43', '23', '53']
+);
+call sp_dynamic_insert(
+    'characters',
+    array['character_name', 'character_class', 'character_tier', 'base_attack', 'base_defense', 'base_intelligence'],
+    array['gusti', '2', '3', '43', '23', '53']
+);
+call sp_dynamic_insert(
+    'items',
+    array['item_name', 'item_type', 'item_tier', 'item_base_value'],
+    array['Tiket masuk surga', '4', '4', '1']
+);
+
+call sp_dynamic_insert(
+    'items',
+    array['item_name', 'item_type', 'item_tier', 'item_base_value'],
+    array['Tiket masuk neraka', '4', '4', '1']
+);
+
+call sp_dynamic_insert(
+    'items',
+    array['item_name', 'item_type', 'item_tier', 'item_base_value'],
+    array['Rempah Mariam', '1', '4', '1']
+);
 
 
-CREATE OR REPLACE FUNCTION complete_match(
-    p_player_id INT,
-    p_match_id INT,
-    p_player_score INT,
-    p_reward_danus INT,
-    p_reward_exp INT,
-    p_reward_sk2pm INT
-) RETURNS VOID AS $$
-DECLARE
-    v_player_match_id INT;
-    v_current_balance INT;
+create or replace procedure sp_dynamic_update(
+    in p_table_name text,            
+    in p_columns text[],               
+    in p_values text[],                
+    in p_condition text                
+)
+language plpgsql
+as $$
+declare
+    query text;                        
+    updates text;                      
+begin
+
+    if array_length(p_columns, 1) <> array_length(p_values, 1) then
+        raise exception 'jumlah kolom dan nilai tidak cocok.';
+    end if;
+
+    updates := array_to_string(
+        array(
+            select format('%I = %L', p_columns[i], p_values[i]) 
+            from generate_subscripts(p_columns, 1) AS i
+        ),
+        ', '
+    );
+
+    query := format(
+        'UPDATE %I SET %s WHERE %s',
+        p_table_name,  
+        updates,       
+        p_condition    
+    );
+
+    raise notice 'Query yang akan dieksekusi: %', query;
+
+    execute query;
+end;
+$$;
+
+call sp_dynamic_update(
+    'characters',
+    array['character_name', 'base_attack'],
+    array['Nisa', '42'],
+    'character_id = 9'
+);
+
+create or replace procedure sp_dynamic_delete(
+    in p_table_name text,              
+    in p_condition text                
+)
+language plpgsql
+as $$
+declare
+    query text;                        
+begin
+    if p_condition is null or trim(p_condition) = '' then
+        raise exception 'Kondisi WHERE tidak boleh kosong untuk DELETE.';
+    end if;
+    IF p_table_name = 'characters' THEN
+        EXECUTE format('DELETE FROM characters_inventory WHERE character_id IN (SELECT character_id FROM %I WHERE %s)', p_table_name, p_condition);
+        EXECUTE format('DELETE FROM npc_sales WHERE character_id IN (SELECT character_id FROM %I WHERE %s)', p_table_name, p_condition);
+	ELSIF p_table_name = 'gears' THEN
+        EXECUTE format('DELETE FROM gears_inventory WHERE gear_id IN (SELECT gear_id FROM %I WHERE %s)', p_table_name, p_condition);
+        EXECUTE format('DELETE FROM npc_sales WHERE gear_id IN (SELECT gear_id FROM %I WHERE %s)', p_table_name, p_condition);
+    ELSIF p_table_name = 'items' THEN
+        EXECUTE format('DELETE FROM items_inventory WHERE item_id IN (SELECT item_id FROM %I WHERE %s)', p_table_name, p_condition);
+        EXECUTE format('DELETE FROM npc_sales WHERE item_id IN (SELECT item_id FROM %I WHERE %s)', p_table_name, p_condition);
+    END IF;
+	query := format(
+        'delete from %I where %s',
+        p_table_name,  
+        p_condition    
+    );
+
+    raise notice 'query yang akan dieksekusi: %', query;
+
+    execute query;
+
+	IF p_table_name = 'characters' THEN
+        PERFORM reorder_characters();
+	elsIF p_table_name = 'items' THEN
+        PERFORM reorder_items();
+	end if;
+end;
+$$;
+
+call sp_dynamic_delete(
+    'characters',
+    'character_id = 9'
+);
+
+
+call sp_dynamic_delete(
+    'items',
+    'item_id = 17'
+);
+
+
+
+CREATE OR REPLACE FUNCTION fn_reorder_and_sync_ids()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
 BEGIN
-    -- Periksa apakah pasangan player_id dan match_id sudah ada
-    SELECT player_match_id INTO v_player_match_id
-    FROM player_match
-    WHERE player_id = p_player_id AND match_id = p_match_id;
+   IF TG_TABLE_NAME = 'characters' THEN
+        UPDATE characters
+        SET character_id = -character_id;
 
-    IF v_player_match_id IS NOT NULL THEN
-        RAISE EXCEPTION 'Error: Data player dan match sudah ada di player_match.';
+        WITH cte AS (
+            SELECT 
+                -character_id AS old_character_id,
+                ROW_NUMBER() OVER (PARTITION BY character_tier ORDER BY character_tier, character_id) AS new_id
+            FROM characters
+        )
+        UPDATE characters
+        SET character_id = cte.new_id
+        FROM cte
+        WHERE characters.character_id = cte.old_character_id;
+
+        UPDATE characters
+        SET character_id = ABS(character_id);
+
+        PERFORM setval(
+            pg_get_serial_sequence('characters', 'character_id'),
+            COALESCE(MAX(character_id), 1)
+        ) FROM characters;
+
+	end if;
+
+    -- Untuk tabel 'items'
+    IF TG_TABLE_NAME = 'items' THEN
+        DROP TABLE IF EXISTS temp_item_mapping;
+
+        CREATE TEMP TABLE temp_item_mapping AS
+        SELECT item_id AS old_item_id, 
+               ROW_NUMBER() OVER (ORDER BY item_id) + 
+               (SELECT COUNT(*) FROM items WHERE item_id <= OLD.item_id) AS new_item_id
+        FROM items
+        WHERE item_id > OLD.item_id;
+
+        -- Update item_id
+        UPDATE items
+        SET item_id = temp_item_mapping.new_item_id
+        FROM temp_item_mapping
+        WHERE items.item_id = temp_item_mapping.old_item_id;
+
+        -- Update npc_sales untuk item_id
+        UPDATE npc_sales
+        SET item_id = temp_item_mapping.new_item_id
+        FROM temp_item_mapping
+        WHERE npc_sales.item_id = temp_item_mapping.old_item_id;
+
+        DROP TABLE temp_item_mapping;
+
+        PERFORM setval('items_item_id_seq', (SELECT MAX(item_id) FROM items));
     END IF;
 
-    -- Jika belum ada, lanjutkan memasukkan skor pemain
-    INSERT INTO player_match (player_match_score, player_id, match_id)
-    VALUES (p_player_score, p_player_id, p_match_id)
-    RETURNING player_match_id INTO v_player_match_id;
+    -- Untuk tabel 'gears'
+    IF TG_TABLE_NAME = 'gears' THEN
+        -- Gunakan ROW_NUMBER untuk mengubah gear_id dengan cara yang aman
+        DROP TABLE IF EXISTS temp_gear_mapping;
 
-    -- Insert reward ke rewards table
-    INSERT INTO rewards (reward_danus, reward_exp, reward_sk2pm, player_match_id)
-    VALUES (p_reward_danus, p_reward_exp, p_reward_sk2pm, v_player_match_id);
+        CREATE TEMP TABLE temp_gear_mapping AS
+        SELECT gear_id AS old_gear_id, 
+               ROW_NUMBER() OVER (ORDER BY gear_id) AS new_gear_id
+        FROM gears
+        WHERE gear_id > OLD.gear_id;
 
-    -- Update balances pemain
-    UPDATE balances
-    SET danus = danus + p_reward_danus
-    WHERE player_id = p_player_id;
+        -- Update gear_id
+        UPDATE gears
+        SET gear_id = temp_gear_mapping.new_gear_id
+        FROM temp_gear_mapping
+        WHERE gears.gear_id = temp_gear_mapping.old_gear_id;
 
-    -- Update profile pemain dengan EXP dan SK2PM
-    UPDATE profile
-    SET player_exp = player_exp + p_reward_exp,
-        sk2pm = sk2pm + p_reward_sk2pm
-    WHERE player_id = p_player_id;
+        -- Update npc_sales untuk gear_id
+        UPDATE npc_sales
+        SET gear_id = temp_gear_mapping.new_gear_id
+        FROM temp_gear_mapping
+        WHERE npc_sales.gear_id = temp_gear_mapping.old_gear_id;
 
-    -- Hitung level berdasarkan EXP (contoh sederhana, bisa diperluas)
-    UPDATE profile
-    SET player_level = CASE
-        WHEN player_exp >= 100 THEN 5
-        WHEN player_exp >= 50 THEN 3
-        WHEN player_exp >= 20 THEN 2
-        ELSE 1
-    END
-    WHERE player_id = p_player_id;
+        DROP TABLE temp_gear_mapping;
 
-    RAISE NOTICE 'Prosedur complete_match selesai untuk player_id % dan match_id %', p_player_id, p_match_id;
+        PERFORM setval('gears_gear_id_seq', (SELECT MAX(gear_id) FROM gears));
+    END IF;
+
+    RETURN NULL;
+END;
+$$;
+
+
+drop function fn_reorder_item_ids cascade;
+drop function fn_reorder_and_sync_ids cascade;
+
+
+create or replace trigger trg_reorder_and_sync_ids_characters
+after delete on characters
+for each row
+execute function fn_reorder_and_sync_ids();
+
+create or replace trigger trg_reorder_and_sync_ids_items
+after delete on items
+for each row
+execute function fn_reorder_and_sync_ids();
+
+create or replace  trigger trg_reorder_and_sync_ids_gears
+after delete on gears
+for each row
+execute function fn_reorder_and_sync_ids();
+
+drop function update_npc_sales cascade;
+
+CREATE OR REPLACE FUNCTION update_npc_sales()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_npc_id INT;
+BEGIN
+    -- Tentukan npc_id berdasarkan tabel yang diubah
+    IF TG_TABLE_NAME = 'characters' THEN
+        v_npc_id := 3; -- npc_id untuk karakter
+        -- Tambahkan karakter ke npc_sales
+        INSERT INTO npc_sales (npc_id, character_id)
+        VALUES (v_npc_id, NEW.character_id);
+    ELSIF TG_TABLE_NAME = 'gears' THEN
+        v_npc_id := 1; -- npc_id untuk gear
+        -- Tambahkan gear ke npc_sales
+        INSERT INTO npc_sales (npc_id, gear_id)
+        VALUES (v_npc_id, NEW.gear_id);
+    ELSIF TG_TABLE_NAME = 'items' THEN
+        v_npc_id := 2; -- npc_id untuk item
+        -- Tambahkan item ke npc_sales
+        INSERT INTO npc_sales (npc_id, item_id)
+        VALUES (v_npc_id, NEW.item_id);
+    END IF;
+
+    -- Reset urutan sale_id
+    PERFORM reorder_npc_sales();
+	perform reorder_items();
+    PERFORM reorder_characters(); -- Reorder untuk characters
+    PERFORM reorder_gears();  
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION reorder_npc_sales()
+RETURNS VOID AS $$
+DECLARE
+BEGIN
+    -- Hapus constraint primary key sementara
+    ALTER TABLE npc_sales DROP CONSTRAINT npc_sales_pkey;
+
+    -- Update sale_id dengan urutan baru menggunakan ROW_NUMBER()
+    WITH ordered_sales AS (
+        SELECT sale_id, ROW_NUMBER() OVER (ORDER BY npc_id, sale_id) AS new_sale_id
+        FROM npc_sales
+    )
+    UPDATE npc_sales
+    SET sale_id = ordered_sales.new_sale_id
+    FROM ordered_sales
+    WHERE npc_sales.sale_id = ordered_sales.sale_id;
+
+    -- Tambahkan kembali primary key
+    ALTER TABLE npc_sales ADD CONSTRAINT npc_sales_pkey PRIMARY KEY (sale_id);
+
+    -- Sinkronkan sequence dengan sale_id terbaru
+    PERFORM setval('npc_sales_sale_id_seq', (SELECT MAX(sale_id) FROM npc_sales));
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION reorder_items()
+RETURNS VOID AS $$
+DECLARE
+BEGIN
+    -- Hapus tabel sementara jika sudah ada
+    DROP TABLE IF EXISTS temp_item_mapping;
+
+    -- Buat tabel sementara untuk menyimpan urutan baru
+    CREATE TEMP TABLE temp_item_mapping AS
+    SELECT item_id AS old_item_id, ROW_NUMBER() OVER (ORDER BY item_id) AS new_item_id
+    FROM items;
+
+    -- Perbarui item_id di tabel items menggunakan tabel sementara
+    UPDATE items
+    SET item_id = t.new_item_id
+    FROM temp_item_mapping t
+    WHERE items.item_id = t.old_item_id;
+
+    -- Perbarui referensi item_id di tabel npc_sales
+    UPDATE npc_sales
+    SET item_id = t.new_item_id
+    FROM temp_item_mapping t
+    WHERE npc_sales.item_id = t.old_item_id;
+
+    -- Sinkronkan sequence item_id
+    PERFORM setval('items_item_id_seq', (SELECT MAX(item_id) FROM items));
 END;
 $$ LANGUAGE plpgsql;
 
 
--- Membuat trigger setelah insert ke rewards
-CREATE TRIGGER after_insert_rewards
-AFTER INSERT ON rewards
-FOR EACH ROW
-EXECUTE FUNCTION update_balances_and_profile();
-
--- ganti dahulu bagian matches nilainya 
--- lalu parameter complete_match diganti menjadi yang terdapat match_id 
-SELECT complete_match(
-    1,   -- p_player_id
-    21,   -- p_match_id
-    3,   -- p_player_score
-    250, -- p_reward_danus
-    100, -- p_reward_exp
-    20   -- p_reward_sk2pm
-);
-
-CREATE OR REPLACE FUNCTION add_match_and_complete(
-    p_match_id INT,
-    p_match_date TIMESTAMP,
-    p_max_skor_match INT,
-    p_duration_match INT,
-    p_battle_mode_id INT,
-    p_player_id INT,
-    p_player_score INT,
-    p_reward_danus INT,
-    p_reward_exp INT,
-    p_reward_sk2pm INT
-) RETURNS VOID LANGUAGE plpgsql AS $$
+CREATE OR REPLACE FUNCTION reorder_characters()
+RETURNS VOID AS $$
+DECLARE
 BEGIN
-    -- Insert data ke tabel matches
-    INSERT INTO matches (match_id, match_date, max_skor_match, duration_match, battle_mode_id)
-    VALUES (p_match_id, p_match_date, p_max_skor_match, p_duration_match, p_battle_mode_id);
-    
-    -- Panggil fungsi complete_match
-    PERFORM complete_match(p_player_id, p_match_id, p_player_score, p_reward_danus, p_reward_exp, p_reward_sk2pm);
-    
-    RAISE NOTICE 'Match % ditambahkan dan complete_match dipanggil untuk player_id %', p_match_id, p_player_id;
+    -- Buat tabel sementara untuk mapping character_id
+    DROP TABLE IF EXISTS temp_character_mapping;
+
+    CREATE TEMP TABLE temp_character_mapping AS
+    SELECT character_id AS old_character_id,
+           ROW_NUMBER() OVER (ORDER BY character_id) AS new_character_id
+    FROM characters;
+
+    -- Set semua character_id ke nilai sementara negatif
+    UPDATE characters
+    SET character_id = -character_id;
+
+    -- Perbarui character_id dengan nilai baru dari tabel sementara
+    UPDATE characters
+    SET character_id = t.new_character_id
+    FROM temp_character_mapping t
+    WHERE characters.character_id = -t.old_character_id;
+
+    -- Perbarui referensi character_id di tabel npc_sales
+    UPDATE npc_sales
+    SET character_id = t.new_character_id
+    FROM temp_character_mapping t
+    WHERE npc_sales.character_id = t.old_character_id;
+
+    -- Sinkronkan sequence
+    PERFORM setval('characters_character_id_seq', (SELECT MAX(character_id) FROM characters));
 END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION reorder_gears()
+RETURNS VOID AS $$
+DECLARE
+BEGIN
+    -- Hapus tabel sementara jika sudah ada
+    DROP TABLE IF EXISTS temp_gear_mapping;
+
+    -- Buat tabel sementara untuk menyimpan urutan baru
+    CREATE TEMP TABLE temp_gear_mapping AS
+    SELECT gear_id AS old_gear_id, ROW_NUMBER() OVER (ORDER BY gear_id) AS new_gear_id
+    FROM gears;
+
+    -- Perbarui gear_id di tabel gears menggunakan tabel sementara
+    UPDATE gears
+    SET gear_id = t.new_gear_id
+    FROM temp_gear_mapping t
+    WHERE gears.gear_id = t.old_gear_id;
+
+    -- Perbarui referensi gear_id di tabel npc_sales
+    UPDATE npc_sales
+    SET gear_id = t.new_gear_id
+    FROM temp_gear_mapping t
+    WHERE npc_sales.gear_id = t.old_gear_id;
+
+    -- Sinkronkan sequence gear_id
+    PERFORM setval('gears_gear_id_seq', (SELECT MAX(gear_id) FROM gears));
+END;
+$$ LANGUAGE plpgsql;
+
+
+-- Trigger untuk tabel characters
+CREATE or replace TRIGGER trg_update_sales_character
+AFTER INSERT ON characters
+FOR EACH ROW
+EXECUTE FUNCTION update_npc_sales();
+
+-- Trigger untuk tabel gears
+CREATE or replace TRIGGER trg_update_sales_gear
+AFTER INSERT ON gears
+FOR EACH ROW
+EXECUTE FUNCTION update_npc_sales();
+
+-- Trigger untuk tabel items
+CREATE or replace TRIGGER trg_update_sales_item
+AFTER INSERT ON items
+FOR EACH ROW
+EXECUTE FUNCTION update_npc_sales();
+
+CREATE OR REPLACE FUNCTION delete_from_npc_sales()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Hapus berdasarkan kolom terkait
+    IF TG_TABLE_NAME = 'characters' THEN
+        DELETE FROM npc_sales WHERE character_id = OLD.character_id;
+    ELSIF TG_TABLE_NAME = 'gears' THEN
+        DELETE FROM npc_sales WHERE gear_id = OLD.gear_id;
+    ELSIF TG_TABLE_NAME = 'items' THEN
+        DELETE FROM npc_sales WHERE item_id = OLD.item_id;
+    END IF;
+
+	PERFORM reorder_npc_sales();
+	perform reorder_items();
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger untuk tabel characters
+CREATE or replace TRIGGER trg_delete_sales_character
+AFTER DELETE ON characters
+FOR EACH ROW
+EXECUTE FUNCTION delete_from_npc_sales();
+
+-- Trigger untuk tabel gears
+CREATE or replace TRIGGER trg_delete_sales_gear
+AFTER DELETE ON gears
+FOR EACH ROW
+EXECUTE FUNCTION delete_from_npc_sales();
+
+-- Trigger untuk tabel items
+CREATE or replace TRIGGER trg_delete_sales_item
+AFTER DELETE ON items
+FOR EACH ROW
+EXECUTE FUNCTION delete_from_npc_sales();
+
+-----================================================================================= CRUD item in store =================================================================================-----
+
+drop procedure add_store_item;
+drop procedure update_store_item;
+drop procedure delete_store_item;
+drop function reorder_store_items;
+drop function trigger_reorder_store cascade;
+
+
+create or replace procedure add_store_item(
+    in seller_type text,
+    in sale_name text,
+    in sales_class text,
+    in price numeric,
+    in currency text
+)
+language plpgsql
+as $$
+begin
+    insert into store (seller_type, sales, sales_class, price, currency)
+    values (seller_type, sale_name, sales_class, price, currency);
+
+    perform reorder_store_items();
+end;
 $$;
 
-SELECT add_match_and_complete(
-    22,                    -- p_match_id
-    '2024-10-02 22:43:00', -- p_match_date
-    3,                     -- p_max_skor_match
-    10,                    -- p_duration_match
-    1,                     -- p_battle_mode_id
-    1,                     -- p_player_id
-    3,                     -- p_player_score
-    250,                   -- p_reward_danus
-    100,                   -- p_reward_exp
-    20                     -- p_reward_sk2pm
+CALL add_store_item('Item seller', 'New Item', 'Chest', 5000, 'danus');
+
+select * from get_store();
+
+create or replace procedure update_store_item(
+    in target_store_id int,
+    in new_seller_type text,
+    in new_sale_name text,
+    in new_sales_class text,
+    in new_price numeric,
+    in new_currency text
+)
+language plpgsql
+as $$
+begin
+    update store
+	set seller_type = new_seller_type,
+        sales = new_sale_name,
+        sales_class = new_sales_class,
+        price = new_price,
+        currency = new_currency
+    where store_id = target_store_id;
+
+    perform reorder_store_items();
+end;
+$$;
+
+create or replace procedure delete_store_item(in target_store_id int)
+language plpgsql
+as $$
+begin
+    delete from store where store_id = target_store_id;
+
+    perform reorder_store_items();
+end;
+$$;
+
+create or replace function reorder_store_items()
+returns void
+language plpgsql
+as $$
+declare
+    rec record;
+    new_store_id int := 1;
+begin
+    for rec in
+        select *
+        from store
+        order by seller_type, sales_class, store_id
+    loop
+        update store
+        set store_id = new_store_id
+        where store_id = rec.store_id;
+
+        new_store_id := new_store_id + 1;
+    end loop;
+end;
+$$;
+
+create or replace function trigger_reorder_store()
+returns trigger
+language plpgsql
+as $$
+begin
+    perform reorder_store_items();
+    return null;
+end;
+$$;
+
+create or replace trigger trigger_reorder_store_items
+after insert or update or delete
+on store
+for each statement
+execute function trigger_reorder_store();
+
+
+-----================================================================================= Battle Mode =================================================================================-----
+create or replace procedure initiate_match(
+    p_player_id int,     
+    p_is_ranked boolean  
+)
+language plpgsql
+as $$
+declare
+    opponent_id int;         
+    opponent_sk2pm int;      
+    player_rounds_won int;  
+	opponent_rounds_won int;        
+    total_rounds int;        
+    total_hits_taken_player int;
+	total_hits_taken_opponent int;    
+	player_hp int := 100;
+begin
+    -- pilih lawan secara acak (selain diri sendiri)
+    select player_id
+    into opponent_id
+    from player
+    where player_id != p_player_id
+    order by random()
+    limit 1;
+
+    -- ambil sk2pm lawan
+    select sk2pm
+    into opponent_sk2pm
+    from profile
+    where player_id = opponent_id;
+
+    -- randomisasi parameter pertandingan
+	total_rounds := FLOOR(random() * 3 + 3);
+
+	-- random skor pemenang
+    if total_rounds = 3 then
+        if random() < 0.5 then
+            player_rounds_won := 3;
+            opponent_rounds_won := 0;
+        else
+            player_rounds_won := 0;
+            opponent_rounds_won := 3;
+        end if;
+    elsif total_rounds = 4 then
+        if random() < 0.5 then
+            player_rounds_won := 3;
+            opponent_rounds_won := 1;
+        else
+            player_rounds_won := 1;
+            opponent_rounds_won := 3;
+        end if;
+    else -- total_rounds = 5
+        if random() < 0.5 then
+            player_rounds_won := 3;
+            opponent_rounds_won := 2;
+        else
+            player_rounds_won := 2;
+            opponent_rounds_won := 3;
+        end if;
+    end if;    
+
+	-- Distribusi hits dengan logika terkait hasil pertandingan
+    if player_rounds_won > opponent_rounds_won then
+        total_hits_taken_player := floor(random() * 10 + 5); 
+        total_hits_taken_opponent := floor(random() * 15 + 10);
+    else
+        total_hits_taken_player := floor(random() * 15 + 10); 
+        total_hits_taken_opponent := floor(random() * 10 + 5);
+    end if;  
+
+	insert into match_logs (
+        player_id, opponent_id, is_ranked, rounds_won, total_rounds, total_hits_taken, player_hp
+    )
+    values (
+        p_player_id, opponent_id, p_is_ranked, player_rounds_won, total_rounds, total_hits_taken_player, player_hp
+    );
+	
+	insert into match_logs (
+        player_id, opponent_id, is_ranked, rounds_won, total_rounds, total_hits_taken, player_hp
+    )
+    values (
+        opponent_id, p_player_id, p_is_ranked, opponent_rounds_won, total_rounds, total_hits_taken_opponent, player_hp
+    );
+    
+end;
+$$;
+
+call initiate_match(1, true);
+
+-----================================================================================= TESTING LOGIC =================================================================================-----
+
+
+-- testing logic untuk rewards
+create or replace function test_rewards_with_penalties(
+    is_ranked boolean,        
+    sk2pm_old int,            -- sk2pm pemain 
+    opponent_sk2pm int,       -- sk2pm lawan
+    rounds_won int,           
+    total_rounds int,         
+    player_hp int,            
+    total_hits_taken int      
+)
+returns table (
+    new_sk2pm int,            
+    danus_reward int,         
+    performance_points int   
+) as $$
+declare
+    k constant int := 30;            -- sensitivitas perubahan sk2pm
+    e float;                         -- ekspektasi
+    s float;                         -- skor per ronde
+    sadjust float;                   -- skor per ronde yang disesuaikan
+    s_performance_factor float;      -- performance factor yang disesuaikan
+    basic_points int := 246;         -- maksimal poin performa untuk 3-0 sempurna
+    hp_penalty int := 0;             -- penalti darah
+    hit_penalty int := 0;            -- penalti hit
+	bonus_round int := 0;			 -- bonus ronde tambahan
+    round_penalty int := 0;          -- penalti untuk ronde tambahan
+begin
+
+    -- mengurangi poin dasar untuk ronde tambahan
+    if total_rounds = 4 then
+        round_penalty := 20;
+		bonus_round := 70;
+		round_penalty := bonus_round - round_penalty;
+    elsif total_rounds = 5 then
+        round_penalty := 40;
+		bonus_round := 140;
+		round_penalty := bonus_round - round_penalty;
+    end if;
+
+	if rounds_won = 0 then
+		round_penalty := 210;
+	elsif rounds_won = 1 then
+		round_penalty := 140;
+	elsif rounds_won = 2 then
+		round_penalty := 70;
+	end if;
+
+    -- penalti berdasarkan darah
+	if player_hp == 100 then
+		hp_penalty := 0;
+    elsif player_hp < 80 then
+        hp_penalty := 40;
+    elsif player_hp < 50 then
+        hp_penalty := 20;
+    elsif player_hp < 20 then
+        hp_penalty := 8;
+    end if;
+
+    -- penalti berdasarkan hit
+    hit_penalty := total_hits_taken * 3;
+	hit_penalty := least(hit_penalty, 3);
+
+    -- menghitung total poin performa setelah penalti
+    performance_points := basic_points - round_penalty - hp_penalty - hit_penalty;
+
+    -- menghitung ekspektasi (e)
+    e := 1 / (1 + power(10, (opponent_sk2pm - sk2pm_old) / 400.0));
+
+    -- menghitung skor s (rasio kemenangan ronde)
+    s := rounds_won::float / total_rounds::float;
+
+    -- menghitung performance factor
+    s_performance_factor := greatest(0, performance_points / 246.0);
+	raise notice 'performance_factor: %', s_performance_factor;
+	raise notice 'performance_points: %', performance_points;
+
+    -- menyesuaikan s
+    sadjust := s + s_performance_factor;
+
+    -- membatasi nilai sadjust agar tidak lebih dari 1
+    if sadjust > 1 then
+        sadjust := 1;
+    end if;
+
+    -- menghitung sk2pm baru (jika ranked)
+    if is_ranked then
+        new_sk2pm := sk2pm_old + k * (sadjust - e);
+    else
+        new_sk2pm := sk2pm_old; 
+    end if;
+
+    -- menghitung reward danus
+    if is_ranked then
+        danus_reward := ceil(1.2 * performance_points);
+    else
+        danus_reward := ceil(0.5 * performance_points);
+    end if;
+
+    -- mengembalikan hasil
+    return query select new_sk2pm, danus_reward, performance_points;
+end;
+$$ language plpgsql;
+
+-- Ranked match (3-1, darah tersisa 50, hit diterima 5)
+select * from test_rewards_with_penalties(
+    true,        -- is_ranked
+    1200,        -- sk2pm_old
+    1300,        -- opponent_sk2pm
+    3,           -- rounds_won (score )
+    3,           -- total_rounds
+    100,          -- player_hp
+    0            -- total_hits_taken
 );
 
------
-
-
--- Function untuk Menghitung Total Skor dari Player Matches --error
-create or replace function calculate_total_score(p_player_id int)
-returns int
-language plpgsql
-as $$
-declare
-    total_score int;
-begin
-    select sum(player_match_score) into total_score
-    from player_match
-    where player_id = p_player_id;
-    
-    return total_score;
-end;
-$$;
-
-SELECT calculate_total_score(1);
-
--- Function untuk Menghitung Total Hadiah (Danus/EXP/SK2PM) --error 
-create or replace function calculate_total_rewards(p_player_id int)
-returns table(total_danus int, total_exp int, total_sk2pm int)
-language plpgsql
-as $$
-begin
-    return query
-    select sum(reward_danus), sum(reward_exp), sum(reward_sk2pm)
-    from rewards r
-    join player_match pm on r.player_match_id = pm.player_match_id
-    where pm.player_id = p_player_id;
-end;
-$$;
-
-SELECT * FROM calculate_total_rewards(1);
-
--- belum kepake
-create or replace function get_gear_stats(p_player_id int)
-returns table(gear_name varchar, gear_type varchar, stat_1_name varchar, stat_1_value int, stat_2_name varchar, stat_2_value int)
-language plpgsql
-as $$
-begin
-    return query
-    select 
-        g.gear_name, 
-        gt.type_name, 
-        s1.stats_name as stat_1_name, 
-        gi.gear_stats_value_1 as stat_1_value, 
-        s2.stats_name as stat_2_name, 
-        gi.gear_stats_value_2 as stat_2_value
-    from gears_inventory gi
-    join gears g on gi.gear_id = g.gear_id
-    join gear_type gt on g.gear_type = gt.type_id
-    join stats s1 on gi.gear_stats_1 = s1.stat_id
-    join stats s2 on gi.gear_stats_2 = s2.stat_id
-    where gi.player_id = p_player_id;
-end;
-$$;
-
-SELECT * FROM get_gear_stats(1);
-
-create or replace function calculate_total_gear_stats(p_player_id int)
-returns table(total_attack int, total_defense int, total_intelligent int)
-language plpgsql
-as $$
-begin
-    return query
-    select 
-        sum(case when gi.gear_stats_1 = 1 then gi.gear_stats_value_1 else 0 end) +
-        sum(case when gi.gear_stats_2 = 1 then gi.gear_stats_value_2 else 0 end) as total_attack,
-        sum(case when gi.gear_stats_1 = 2 then gi.gear_stats_value_1 else 0 end) +
-        sum(case when gi.gear_stats_2 = 2 then gi.gear_stats_value_2 else 0 end) as total_defense,
-        sum(case when gi.gear_stats_1 = 3 then gi.gear_stats_value_1 else 0 end) +
-        sum(case when gi.gear_stats_2 = 3 then gi.gear_stats_value_2 else 0 end) as total_intelligent
-    from gears_inventory gi
-    where gi.player_id = p_player_id;
-end;
-$$;
-
-select * from calculate_total_gear_stats(1);
-
-create or replace function count_player_matches(p_player_id int)
-returns int
-language plpgsql
-as $$
-declare
-    match_count int;
-begin
-    select count(*) into match_count
-    from player_match
-    where player_id = p_player_id;
-
-    return match_count;
-end;
-$$;
-
-
-select count_player_matches(1);
-
------================================================================================= Trigger =================================================================================-----
-;
-
-
-create trigger update_rank_after_sk2pm_change
-after update on profile
-for each row
-when (OLD.sk2pm <> NEW.sk2pm)
-execute procedure update_player_rank(NEW.player_id);
-
-create trigger add_item_to_inventory_after_purchase
-after insert on purchases
-for each row
-execute procedure add_item_to_inventory(NEW.player_id, NEW.item_id);
-
-create trigger update_level_after_exp_change
-after update on profile
-for each row
-when (OLD.player_exp <> NEW.player_exp)
-execute procedure update_exp_and_level(NEW.player_id, NEW.player_exp - OLD.player_exp);
-
-create trigger validate_transaction
-before insert on transactions
-for each row
-when (NEW.transaction_amount <= 0)
-execute procedure raise_exception('Transaction amount must be positive!');
-
-
-create trigger update_leaderboard_after_rank_change
-after update on profile
-for each row
-when (OLD.player_rank <> NEW.player_rank)
-execute procedure update_leaderboard(NEW.player_id);
-
-
------================================================================================= Transaction =================================================================================-----
-begin;
-
--- Tambahkan transaksi pembelian
-insert into transactions (transaction_type, transaction_amount, player_id)
-values ('item', 1000, 1);
-
-
-call add_transaction_and_update_balance(1, 'danus', -1000);
-
-
-call add_item_to_inventory(1, 2);
-
-commit;
-
-begin;
-
-
-call update_exp_and_level(1, 500);
-
-
-call update_player_rank(1);
-
-commit;
-
-
-begin;
-
--- Cek saldo saat ini
-declare
-    current_balance int;
-begin
-    select danus into current_balance from balances where player_id = 1;
-
-    if current_balance >= 1000 then
-        -- Tambahkan transaksi pembelian
-        call add_transaction_and_update_balance(1, 'danus', -1000);
-        -- Tambahkan item ke inventory
-        call add_item_to_inventory(1, 2);
-    else
-        raise exception 'Insufficient danus balance!';
-    end if;
-end;
-
-commit;
 
 
 
 
 
 
-create or replace function is_admin_exists(p_player_id int)
-returns boolean
-language plpgsql
-as $$
-begin
-    return exists (select 1 from player where player_id = p_player_id and role = 'admin');
-end;
-$$;
-
-create or replace procedure getAdminById(
-  inout p_player_id int
-)
-language plpgsql 
-as $$
-begin
-    if not is_admin_exists(p_player_id) then
-        raise exception 'id player dengan role admin tidak ditemukan: %', p_player_id;
-    end if;
-  
-    raise notice 'Menemukan id player: %', p_player_id;
-end;
-$$;

@@ -8,7 +8,7 @@ import { topupHistoryRouter } from './topup/topupHistoryRouter';
 import { getPackagesRouter } from './topup/getPackagesRouter';
 import { transactionRouter } from './topup/transaction/'
 
-const appRouter = new Elysia()
+const topupRouter = new Elysia()
   .group('/topup', (group) => {
   group
     .use(topupUktRouter)
@@ -28,4 +28,4 @@ const authRouter = new Elysia()
   return group;
 });
 
-export { appRouter, authRouter };
+export { topupRouter, authRouter };

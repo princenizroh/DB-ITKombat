@@ -43,6 +43,8 @@ async function getPackageInfo() {
 const getPackagesController = async ({ set, jwt, cookie: { accessToken }, query}: { set: any, jwt: any, cookie: any, query: any}) => {
   try {
     const accessTokenValue = accessToken.value;
+    console.log("Access Token:", accessToken);
+    console.log("Access Token package:", accessTokenValue);
     if (!accessTokenValue) {
       set.status = 401;
       return {
@@ -69,6 +71,7 @@ const getPackagesController = async ({ set, jwt, cookie: { accessToken }, query}
     }
 
     const jwtPayload = await jwt.verify(accessTokenValue);
+    console.log("Payload:", jwtPayload);
     const playerId = jwtPayload.sub.p_player_id;
     const result = await getPackageInfo();
     const balance = await getBalance(playerId);

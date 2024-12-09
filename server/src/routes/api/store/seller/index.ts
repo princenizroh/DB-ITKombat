@@ -1,6 +1,6 @@
 import { Elysia } from 'elysia';
 import { getStoreSellerRouter } from './getStoreSellerRouter'
-import { storeTypesRouter, purchaseTypesStoreRouter } from './types';
+import { storeTypesRouter, purchaseStoreTypesRouter, adminStoreTypesRouter  } from './types';
 
 const storeSellerRouter = new Elysia()
   .group('/seller', (group) => {
@@ -13,8 +13,15 @@ const storeSellerRouter = new Elysia()
 const purchaseStoreSellerRouter = new Elysia() 
   .group('/seller', (group) => {
     group
-      .use(purchaseTypesStoreRouter)
+      .use(purchaseStoreTypesRouter)
     return group;
   });
 
-export { storeSellerRouter, purchaseStoreSellerRouter }
+const adminStoreSellerRouter = new Elysia()
+  .group('/seller', (group) => {
+  group
+    .use(adminStoreTypesRouter) 
+  return group;
+})
+
+export { storeSellerRouter, purchaseStoreSellerRouter, adminStoreSellerRouter }

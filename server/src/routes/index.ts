@@ -1,13 +1,19 @@
 import { Elysia } from 'elysia';
-import { dbFunction } from '@/config/db';
-import { appRouter, authRouter } from '@/routes/api';
+import { topupRouter, authRouter } from '@/routes/api';
 import { mypageRouter } from '@/routes/api/mypage';
 import { isPlayerMiddleware } from '@/middlewares/isPlayerMiddleware';
 import { isAdminMiddleware } from '@/middlewares/isAdminMiddleware';
-import { storeRouter, purchaseStoreRouter } from '@/routes/api/store';
+import { storeRouter, purchaseStoreRouter, adminStoreRouter } from '@/routes/api/store';
+import { activityRouter } from '@/routes/api/activity';
+import { battleRouter } from '@/routes/api/battle'
 import { inventoryRouter } from '@/routes/api/inventory';
 const router = new Elysia()
-  .use(storeRouter)
+  .group('', (group) => {
+  group
+    .use(authRouter)
+    .use(storeRouter)
+    return group;
+  })
   .group('', (group) => {
   group
     .use(isPlayerMiddleware)
@@ -33,7 +39,8 @@ const router = new Elysia()
         }
       }
     })
-    .use(appRouter)
+    .use(topupRouter)
+    .use(battleRouter)
     .use(purchaseStoreRouter)
     .use(mypageRouter)
     .use(inventoryRouter)
@@ -52,57 +59,9 @@ const router = new Elysia()
           }
         }
       }) 
-      .get("/activity", async ({ jwt, set ,cookie: { accessToken }, query} : { jwt: any, set: any, cookie: any, query: any}) => {
-        try {
-          const accessTokenValue = accessToken.value;
-          if (!accessTokenValue) {
-            set.status = 401;
-            return {
-              success: false,
-              message: "Silahkan signin terlebih dahulu",
-              error: [{
-                field: "accessToken",
-                message: "Unauthorized"
-              }],
-              redirect: "/membership/signin"
-            }
-          }
-          const jwtPayload = await jwt.verify(accessTokenValue);
-          const role = 'admin';
-          const isAdmin = jwtPayload.sub.p_role;
-          if (isAdmin !== role) {
-            set.status = 401;
-            return {
-              success: false,
-              message: "Anda bukan admin",
-              error: [{
-                field: "accessToken",
-                message: "Unauthorized"
-              }],
-            }
-          }
-
-          const colums = ['player_id', 'username', 'type_activity', 'time_activity'];
-          const result = await dbFunction("get_player_activity", colums);
-          return {
-            success: true,
-            message: 'get activity success',
-            data: result,
-          };
-        } catch (error) {
-          console.error(error);
-          return {
-            message: "Failed to fetch activity",
-            error: (error as Error).message
-          };
-        }
-      })
+      .use(activityRouter)
+      .use(adminStoreRouter)
     )
-    return group;
-  })
-  .group('', (group) => {
-  group
-    .use(authRouter)
     return group;
   })
 
